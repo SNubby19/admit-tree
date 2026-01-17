@@ -9,7 +9,7 @@ import { FocusedProgramView } from '@/components/FocusedProgramView';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { Star } from 'lucide-react';
 
-const Index = () => {
+const Dashboard = () => {
   const [focusedProgramId, setFocusedProgramId] = useState<string | null>(null);
   const [activeRoadmapId, setActiveRoadmapId] = useState<string | null>(null);
 
@@ -23,15 +23,15 @@ const Index = () => {
   const completedBonusTasks = globalBonusTasks.filter(t => t.isComplete).length;
 
   // Get focused program
-  const focusedProgram = focusedProgramId 
-    ? mockPrograms.find(p => p.id === focusedProgramId) 
+  const focusedProgram = focusedProgramId
+    ? mockPrograms.find(p => p.id === focusedProgramId)
     : null;
 
   // Filter programs by active roadmap
-  const activeRoadmap = activeRoadmapId 
+  const activeRoadmap = activeRoadmapId
     ? applicationRoadmaps.find(r => r.id === activeRoadmapId)
     : null;
-  
+
   const displayedPrograms = activeRoadmap
     ? mockPrograms.filter(p => activeRoadmap.programIds.includes(p.id))
     : mockPrograms;
@@ -73,8 +73,8 @@ const Index = () => {
 
         {/* Timeline at the top */}
         {!focusedProgram && (
-          <TaskTimeline 
-            programs={displayedPrograms} 
+          <TaskTimeline
+            programs={displayedPrograms}
             onTaskClick={handleTimelineTaskClick}
           />
         )}
@@ -106,8 +106,8 @@ const Index = () => {
                 </div>
                 {displayedPrograms.length > 0 ? (
                   displayedPrograms.map(program => (
-                    <div 
-                      key={program.id} 
+                    <div
+                      key={program.id}
                       onClick={() => handleProgramClick(program.id)}
                       className="cursor-pointer"
                     >
@@ -159,4 +159,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Dashboard;
