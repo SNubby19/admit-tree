@@ -1,9 +1,17 @@
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
 from services.matcher import UniversityMatcher
 
+# Load environment variables from .env file
+load_dotenv()
+
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+
+# Configure CORS from environment variables
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:8080,http://localhost:3000").split(",")
+CORS(app, origins=cors_origins)
 
 @app.route("/")
 def home():
@@ -58,4 +66,7 @@ def recommend():
 
 
 if __name__ == "__main__":
-    app.run(port=5001)
+    port = int(os.getenv("FLASK_PORT", 5001))
+    host = os.getenv("API_HOST", "0.0.0.0")
+    debug = os.getenv("FLASK_DEBUG", "True").lower() == "true"
+    app.run(host=host, port=port, debug=debug)

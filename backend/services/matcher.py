@@ -106,7 +106,11 @@ class UniversityMatcher:
     def get_ranked_programs(self):
         results = []
         
-        for uni_name, programs in UNIVERSITY_DB.items():
+        for uni_name, uni_data in UNIVERSITY_DB.items():
+            # Get university-level ec_quality
+            uni_ec_quality = uni_data['ec_quality']
+            programs = uni_data['programs']
+            
             for prog_name, details in programs.items():
                 
                 # 1. Component Scores
@@ -118,7 +122,8 @@ class UniversityMatcher:
                 
                 s_int = self._calculate_interest_score(details['interest_fields'])
                 
-                s_ec = self._calculate_ec_score(details['ec_quality'])
+                # Use university-level ec_quality instead of program-level
+                s_ec = self._calculate_ec_score(uni_ec_quality)
                 
                 # 2. Weighted Base Calculation
                 base_score = (
