@@ -101,33 +101,11 @@ export function ProgramSelectionModal({
                                             </p>
 
                                             {/* Score Badge */}
-                                            <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex items-center gap-2">
                                                 <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md">
                                                     <TrendingUp className="h-3 w-3" />
                                                     <span className="text-xs font-bold font-mono">
                                                         {program.score.toFixed(1)}%
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Score Breakdown */}
-                                            <div className="space-y-1 text-xs text-muted-foreground">
-                                                <div className="flex justify-between">
-                                                    <span>Academic:</span>
-                                                    <span className="font-mono">
-                                                        {(program.breakdown.academic * 100).toFixed(0)}%
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Interest:</span>
-                                                    <span className="font-mono">
-                                                        {(program.breakdown.interest * 100).toFixed(0)}%
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span>Extracurriculars:</span>
-                                                    <span className="font-mono">
-                                                        {(program.breakdown.ec * 100).toFixed(0)}%
                                                     </span>
                                                 </div>
                                             </div>
