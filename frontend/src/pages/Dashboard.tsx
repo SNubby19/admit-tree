@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { mockPrograms, globalBonusTasks, applicationRoadmaps } from '@/data/mockData';
+import { useState, useEffect } from 'react';
+import { globalBonusTasks, applicationRoadmaps } from '@/data/mockData';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { ProgramCard } from '@/components/ProgramCard';
 import { BonusTaskCard } from '@/components/BonusTaskCard';
@@ -7,24 +7,53 @@ import { RoadmapSidebar } from '@/components/RoadmapSidebar';
 import { ChatbotButton } from '@/components/ChatbotButton';
 import { FocusedProgramView } from '@/components/FocusedProgramView';
 import { TaskTimeline } from '@/components/TaskTimeline';
-import { Star } from 'lucide-react';
+import { Star, Trash2 } from 'lucide-react';
+import { UniversityProgram } from '@/types/application';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 const Dashboard = () => {
   const [focusedProgramId, setFocusedProgramId] = useState<string | null>(null);
   const [activeRoadmapId, setActiveRoadmapId] = useState<string | null>(null);
+  const [programs, setPrograms] = useState<UniversityProgram[]>([]);
+  const { toast } = useToast();
+
+  // Load programs from localStorage on mount
+  useEffect(() => {
+    const storedPrograms = localStorage.getItem("currentPrograms");
+    if (storedPrograms) {
+      try {
+        const parsedPrograms = JSON.parse(storedPrograms);
+        setPrograms(parsedPrograms);
+      } catch (error) {
+        console.error("Failed to parse stored programs:", error);
+      }
+    }
+  }, []);
 
   // Calculate stats
-  const totalPrograms = mockPrograms.length;
-  const allSteps = mockPrograms.flatMap(p => p.steps);
+  const totalPrograms = programs.length;
+  const allSteps = programs.flatMap(p => p.steps);
   const completedSteps = allSteps.filter(s => s.status === 'complete').length;
   const totalSteps = allSteps.length;
-  const overallProgress = Math.round((completedSteps / totalSteps) * 100);
+  const overallProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   const completedBonusTasks = globalBonusTasks.filter(t => t.isComplete).length;
 
   // Get focused program
   const focusedProgram = focusedProgramId
-    ? mockPrograms.find(p => p.id === focusedProgramId)
+    ? programs.find(p => p.id === focusedProgramId)
     : null;
 
   // Filter programs by active roadmap
@@ -33,8 +62,8 @@ const Dashboard = () => {
     : null;
 
   const displayedPrograms = activeRoadmap
-    ? mockPrograms.filter(p => activeRoadmap.programIds.includes(p.id))
-    : mockPrograms;
+    ? programs.filter(p => activeRoadmap.programIds.includes(p.id))
+    : programs;
 
   const handleSelectRoadmap = (id: string) => {
     setActiveRoadmapId(id === activeRoadmapId ? null : id);
@@ -52,6 +81,19 @@ const Dashboard = () => {
 
   const handleTimelineTaskClick = (stepId: string, programId: string) => {
     setFocusedProgramId(programId);
+  };
+
+  const handleClearData = () => {
+    localStorage.removeItem("currentPrograms");
+    localStorage.removeItem("currentRoadmap");
+    localStorage.removeItem("userRoadmaps");
+    setPrograms([]);
+    setFocusedProgramId(null);
+    setActiveRoadmapId(null);
+    toast({
+      title: "Data Cleared",
+      description: "All stored programs have been removed from your dashboard.",
+    });
   };
 
   return (
@@ -100,9 +142,36 @@ const Dashboard = () => {
                   <h2 className="text-lg font-bold uppercase tracking-wider">
                     {activeRoadmap ? activeRoadmap.name : 'My Programs'}
                   </h2>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {displayedPrograms.length} active
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {displayedPrograms.length} active
+                    </span>
+                    {programs.length > 0 && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Trash2 className="h-4 w-4" />
+                            Clear Data
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Clear All Programs?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove all programs from your dashboard. This action cannot be undone.
+                              You can always create a new roadmap by completing the intake form again.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleClearData} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Clear All Data
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
                 {displayedPrograms.length > 0 ? (
                   displayedPrograms.map(program => (
@@ -116,7 +185,11 @@ const Dashboard = () => {
                   ))
                 ) : (
                   <div className="bg-card border-2 border-border p-8 text-center">
-                    <p className="text-muted-foreground">No programs in this roadmap yet.</p>
+                    <p className="text-muted-foreground">
+                      {programs.length === 0 
+                        ? "No programs found. Please complete the intake form to get recommendations." 
+                        : "No programs in this roadmap yet."}
+                    </p>
                   </div>
                 )}
               </div>

@@ -23,8 +23,11 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { MultiSelect, Option } from "@/components/ui/multi-select";
+import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { UniversityProgram } from "@/types/application";
+import { ProgramSelectionModal } from "@/components/ProgramSelectionModal";
 
 const extraCurricularSchema = z.object({
     name: z.string().min(1, "Activity name is required"),
@@ -40,6 +43,7 @@ const intakeSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
     email: z.string().trim().email("Please enter a valid email").max(255, "Email must be less than 255 characters"),
     grade: z.string().min(1, "Please select your current grade level"),
+    wants_coop: z.boolean().default(false),
     extra_curriculars: z.array(extraCurricularSchema).min(0),
     interests: z.array(z.string()).min(1, "Please select at least one interest"),
     courses_taken: z.array(courseTakenSchema).min(1, "Please add at least one course with a grade"),
@@ -96,10 +100,25 @@ const courseOptions: Option[] = [
     { value: "TGJ4M", label: "TGJ4M - Communications Technology" },
 ];
 
+interface ProgramRanking {
+    university: string;
+    program: string;
+    score: number;
+    breakdown: {
+        academic: number;
+        interest: number;
+        ec: number;
+        coop_fit: number;
+    };
+}
+
 const Intake = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSelectionModal, setShowSelectionModal] = useState(false);
+    const [programRankings, setProgramRankings] = useState<ProgramRanking[]>([]);
+    const [pendingFormData, setPendingFormData] = useState<IntakeFormData | null>(null);
 
     const form = useForm<IntakeFormData>({
         resolver: zodResolver(intakeSchema),
@@ -107,6 +126,7 @@ const Intake = () => {
             name: "",
             email: "",
             grade: "",
+            wants_coop: false,
             extra_curriculars: [],
             interests: [],
             courses_taken: [],
@@ -123,50 +143,116 @@ const Intake = () => {
         name: "courses_taken",
     });
 
-    const onSubmit = async (data: IntakeFormData) => {
-        setIsSubmitting(true);
+    const handleProgramSelection = (selectedIndices: number[]) => {
+        if (!pendingFormData) return;
 
-        // Simulate roadmap generation
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        // Transform selected rankings to UniversityProgram format
+        const selectedPrograms: UniversityProgram[] = selectedIndices.map((index) => {
+            const ranking = programRankings[index];
+            return {
+                id: `program-${index + 1}`,
+                universityName: ranking.university,
+                programName: ranking.program,
+                deadline: "2025-01-15", // Default deadline, can be enhanced later
+                overallProgress: 0, // New programs start at 0%
+                steps: [], // Can be populated later
+                bonusTasks: [],
+            };
+        });
 
-        // Transform data to match the required JSON schema
+        // Store student profile and selected programs
+        const roadmapId = `roadmap-${Date.now()}`;
         const studentProfile = {
-            name: data.name,
-            email: data.email,
-            grade: data.grade,
-            extra_curriculars: data.extra_curriculars.map((ec) => ({
-                name: ec.name,
-                leadership_level: ec.leadership_level,
-            })),
-            interests: data.interests,
-            courses_taken: data.courses_taken.map((course) => ({
-                course: course.course,
-                grade: course.grade,
-            })),
+            name: pendingFormData.name,
+            email: pendingFormData.email,
+            grade: pendingFormData.grade,
+            wants_coop: pendingFormData.wants_coop,
+            extra_curriculars: pendingFormData.extra_curriculars,
+            interests: pendingFormData.interests,
+            courses_taken: pendingFormData.courses_taken,
         };
 
-        // Store in localStorage for demo purposes
-        const roadmapId = `roadmap-${Date.now()}`;
         const newRoadmap = {
             id: roadmapId,
             student_profile: studentProfile,
+            programs: selectedPrograms,
             createdAt: new Date().toISOString(),
         };
 
-        // Get existing roadmaps or create empty array
+        // Store in localStorage
         const existingRoadmaps = JSON.parse(localStorage.getItem("userRoadmaps") || "[]");
         existingRoadmaps.push(newRoadmap);
         localStorage.setItem("userRoadmaps", JSON.stringify(existingRoadmaps));
         localStorage.setItem("currentRoadmap", JSON.stringify(newRoadmap));
+        localStorage.setItem("currentPrograms", JSON.stringify(selectedPrograms));
 
-        setIsSubmitting(false);
+        setShowSelectionModal(false);
+        setPendingFormData(null);
+        setProgramRankings([]);
 
         toast({
             title: "Roadmap Created!",
-            description: "Your personalized application roadmap is ready.",
+            description: `Added ${selectedPrograms.length} program${selectedPrograms.length !== 1 ? "s" : ""} to your dashboard.`,
         });
 
         navigate("/dashboard");
+    };
+
+    const handleCancelSelection = () => {
+        setShowSelectionModal(false);
+        setPendingFormData(null);
+        setProgramRankings([]);
+    };
+
+    const onSubmit = async (data: IntakeFormData) => {
+        setIsSubmitting(true);
+
+        try {
+            // Calculate average from courses
+            const average = data.courses_taken.reduce((sum, course) => sum + course.grade, 0) / data.courses_taken.length;
+
+            // Convert grade string to int (e.g., "Grade 9" -> 9)
+            const gradeLevel = parseInt(data.grade.replace("Grade ", ""));
+
+            // Transform data to match backend API format
+            const backendPayload = {
+                grade_level: gradeLevel,
+                average: average,
+                wants_coop: data.wants_coop,
+                extra_curriculars: data.extra_curriculars.map((ec) => [ec.name, ec.leadership_level]),
+                major_interests: data.interests,
+                courses_taken: data.courses_taken.map((course) => [course.course, course.grade]),
+            };
+
+            // Call backend API
+            const response = await fetch("http://localhost:5001/api/recommend", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(backendPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to get recommendations");
+            }
+
+            const apiResponse = await response.json();
+
+            // Store form data and rankings, then show selection modal
+            setPendingFormData(data);
+            setProgramRankings(apiResponse.rankings);
+            setIsSubmitting(false);
+            setShowSelectionModal(true);
+        } catch (error) {
+            setIsSubmitting(false);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to create roadmap. Please try again.",
+                variant: "destructive",
+            });
+        }
     };
 
     return (
@@ -243,6 +329,28 @@ const Intake = () => {
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {/* Co-op Preference */}
+                                <FormField
+                                    control={form.control}
+                                    name="wants_coop"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">Are you interested in co-op programs?</FormLabel>
+                                                <FormDescription>
+                                                    Co-op programs offer work experience opportunities during your studies
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
                                         </FormItem>
                                     )}
                                 />
@@ -454,6 +562,14 @@ const Intake = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Program Selection Modal */}
+            <ProgramSelectionModal
+                open={showSelectionModal}
+                rankings={programRankings}
+                onConfirm={handleProgramSelection}
+                onCancel={handleCancelSelection}
+            />
         </div>
     );
 };
