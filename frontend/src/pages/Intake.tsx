@@ -31,13 +31,18 @@ const extraCurricularSchema = z.object({
     leadership_level: z.number().min(1, "Leadership level must be at least 1").max(4, "Leadership level must be at most 4"),
 });
 
+const courseTakenSchema = z.object({
+    course: z.string().min(1, "Please select a course"),
+    grade: z.number().min(0, "Grade must be at least 0").max(100, "Grade must be at most 100"),
+});
+
 const intakeSchema = z.object({
     name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
     email: z.string().trim().email("Please enter a valid email").max(255, "Email must be less than 255 characters"),
     grade: z.string().min(1, "Please select your current grade level"),
     extra_curriculars: z.array(extraCurricularSchema).min(0),
     interests: z.array(z.string()).min(1, "Please select at least one interest"),
-    courses_taken: z.array(z.string()).min(1, "Please select at least one course"),
+    courses_taken: z.array(courseTakenSchema).min(1, "Please add at least one course with a grade"),
 });
 
 type IntakeFormData = z.infer<typeof intakeSchema>;
@@ -47,62 +52,48 @@ const interestOptions: Option[] = [
     { value: "Software Engineering", label: "Software Engineering" },
     { value: "Electrical Engineering", label: "Electrical Engineering" },
     { value: "Mechanical Engineering", label: "Mechanical Engineering" },
-    { value: "Business", label: "Business" },
-    { value: "Commerce", label: "Commerce" },
-    { value: "Finance", label: "Finance" },
-    { value: "Accounting", label: "Accounting" },
-    { value: "Health Sciences", label: "Health Sciences" },
-    { value: "Medicine", label: "Medicine" },
-    { value: "Nursing", label: "Nursing" },
-    { value: "Biology", label: "Biology" },
-    { value: "Chemistry", label: "Chemistry" },
+    { value: "Civil Engineering", label: "Civil Engineering" },
+    { value: "Chemical Engineering", label: "Chemical Engineering" },
+    { value: "Aerospace Engineering", label: "Aerospace Engineering" },
+    { value: "Biomedical Engineering", label: "Biomedical Engineering" },
+    { value: "Industrial Engineering", label: "Industrial Engineering" },
+    { value: "Materials Engineering", label: "Materials Engineering" },
+    { value: "Systems Engineering", label: "Systems Engineering" },
+    { value: "Environmental Engineering", label: "Environmental Engineering" },
+    { value: "Computer Engineering", label: "Computer Engineering" },
+    { value: "Robotics Engineering", label: "Robotics Engineering" },
+    { value: "Mechatronics Engineering", label: "Mechatronics Engineering" },
+    { value: "Engineering Physics", label: "Engineering Physics" },
     { value: "Physics", label: "Physics" },
     { value: "Mathematics", label: "Mathematics" },
-    { value: "Psychology", label: "Psychology" },
-    { value: "Sociology", label: "Sociology" },
-    { value: "Political Science", label: "Political Science" },
-    { value: "Economics", label: "Economics" },
-    { value: "English", label: "English" },
-    { value: "History", label: "History" },
-    { value: "Philosophy", label: "Philosophy" },
-    { value: "Art", label: "Art" },
-    { value: "Design", label: "Design" },
-    { value: "Music", label: "Music" },
-    { value: "Theater", label: "Theater" },
+    { value: "Chemistry", label: "Chemistry" },
 ];
 
 const courseOptions: Option[] = [
     { value: "grade-9-math", label: "Grade 9 Mathematics" },
     { value: "grade-9-english", label: "Grade 9 English" },
     { value: "grade-9-science", label: "Grade 9 Science" },
-    { value: "grade-9-geography", label: "Grade 9 Geography" },
-    { value: "grade-9-french", label: "Grade 9 French" },
-    { value: "grade-9-art", label: "Grade 9 Art" },
-    { value: "grade-9-pe", label: "Grade 9 Physical Education" },
+    { value: "grade-9-technology", label: "Grade 9 Technology" },
     { value: "grade-10-math", label: "Grade 10 Mathematics" },
     { value: "grade-10-english", label: "Grade 10 English" },
     { value: "grade-10-science", label: "Grade 10 Science" },
-    { value: "grade-10-history", label: "Grade 10 History" },
-    { value: "grade-10-civics", label: "Grade 10 Civics" },
-    { value: "grade-10-careers", label: "Grade 10 Careers" },
+    { value: "grade-10-technology", label: "Grade 10 Technology" },
     { value: "grade-11-functions", label: "Grade 11 Functions" },
     { value: "grade-11-english", label: "Grade 11 English" },
-    { value: "grade-11-biology", label: "Grade 11 Biology" },
     { value: "grade-11-chemistry", label: "Grade 11 Chemistry" },
     { value: "grade-11-physics", label: "Grade 11 Physics" },
     { value: "grade-11-computer-science", label: "Grade 11 Computer Science" },
-    { value: "grade-11-history", label: "Grade 11 History" },
-    { value: "grade-11-economics", label: "Grade 11 Economics" },
+    { value: "grade-11-engineering", label: "Grade 11 Engineering" },
+    { value: "grade-11-technology", label: "Grade 11 Technology" },
     { value: "grade-12-advanced-functions", label: "Grade 12 Advanced Functions" },
     { value: "grade-12-calculus", label: "Grade 12 Calculus" },
     { value: "grade-12-english", label: "Grade 12 English" },
-    { value: "grade-12-biology", label: "Grade 12 Biology" },
     { value: "grade-12-chemistry", label: "Grade 12 Chemistry" },
     { value: "grade-12-physics", label: "Grade 12 Physics" },
     { value: "grade-12-computer-science", label: "Grade 12 Computer Science" },
     { value: "grade-12-data-management", label: "Grade 12 Data Management" },
-    { value: "grade-12-economics", label: "Grade 12 Economics" },
-    { value: "grade-12-business", label: "Grade 12 Business" },
+    { value: "grade-12-engineering", label: "Grade 12 Engineering" },
+    { value: "grade-12-technology", label: "Grade 12 Technology" },
 ];
 
 const Intake = () => {
@@ -122,9 +113,14 @@ const Intake = () => {
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields: extraCurricularFields, append: appendExtraCurricular, remove: removeExtraCurricular } = useFieldArray({
         control: form.control,
         name: "extra_curriculars",
+    });
+
+    const { fields: courseFields, append: appendCourse, remove: removeCourse } = useFieldArray({
+        control: form.control,
+        name: "courses_taken",
     });
 
     const onSubmit = async (data: IntakeFormData) => {
@@ -143,7 +139,10 @@ const Intake = () => {
                 leadership_level: ec.leadership_level,
             })),
             interests: data.interests,
-            courses_taken: data.courses_taken,
+            courses_taken: data.courses_taken.map((course) => ({
+                course: course.course,
+                grade: course.grade,
+            })),
         };
 
         // Store in localStorage for demo purposes
@@ -261,19 +260,19 @@ const Intake = () => {
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => append({ name: "", leadership_level: 1 })}
+                                            onClick={() => appendExtraCurricular({ name: "", leadership_level: 1 })}
                                             className="gap-2"
                                         >
                                             <Plus className="h-4 w-4" />
                                             Add Activity
                                         </Button>
                                     </div>
-                                    {fields.length === 0 && (
+                                    {extraCurricularFields.length === 0 && (
                                         <p className="text-sm text-muted-foreground text-center py-4">
                                             No activities added yet. Click "Add Activity" to get started.
                                         </p>
                                     )}
-                                    {fields.map((field, index) => (
+                                    {extraCurricularFields.map((field, index) => (
                                         <div key={field.id} className="flex gap-2 items-start p-4 border rounded-lg">
                                             <div className="flex-1 space-y-4">
                                                 <FormField
@@ -320,7 +319,7 @@ const Intake = () => {
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => remove(index)}
+                                                onClick={() => removeExtraCurricular(index)}
                                                 className="mt-8"
                                             >
                                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -351,25 +350,91 @@ const Intake = () => {
                                 />
 
                                 {/* Courses Taken */}
-                                <FormField
-                                    control={form.control}
-                                    name="courses_taken"
-                                    render={({ field }) => (
-                                        <FormItem>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
                                             <FormLabel>Which courses have you completed so far?</FormLabel>
-                                            <FormControl>
-                                                <MultiSelect
-                                                    options={courseOptions}
-                                                    selected={field.value}
-                                                    onChange={field.onChange}
-                                                    placeholder="Select courses..."
-                                                    emptyMessage="No courses found."
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                            <FormDescription>
+                                                Add each course you've completed along with your grade (0-100).
+                                            </FormDescription>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => appendCourse({ course: "", grade: 0 })}
+                                            className="gap-2"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Add Course
+                                        </Button>
+                                    </div>
+                                    {courseFields.length === 0 && (
+                                        <p className="text-sm text-muted-foreground text-center py-4">
+                                            No courses added yet. Click "Add Course" to get started.
+                                        </p>
                                     )}
-                                />
+                                    {courseFields.map((field, index) => (
+                                        <div key={field.id} className="flex gap-2 items-start p-4 border rounded-lg">
+                                            <div className="flex-1 space-y-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`courses_taken.${index}.course`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Course</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select a course" />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    {courseOptions.map((option) => (
+                                                                        <SelectItem key={option.value} value={option.value}>
+                                                                            {option.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`courses_taken.${index}.grade`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Grade (%)</FormLabel>
+                                                            <FormControl>
+                                                                <Input
+                                                                    type="number"
+                                                                    placeholder="Enter grade (0-100)"
+                                                                    min="0"
+                                                                    max="100"
+                                                                    {...field}
+                                                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                                    value={field.value || ""}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeCourse(index)}
+                                                className="mt-8"
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
 
                                 <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
                                     {isSubmitting ? (
