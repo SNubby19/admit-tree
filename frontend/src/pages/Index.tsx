@@ -96,13 +96,24 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Main Content - Program Cards */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold uppercase tracking-wider">
-                    {activeRoadmap ? activeRoadmap.name : 'My Programs'}
-                  </h2>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {displayedPrograms.length} active
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-bold uppercase tracking-wider">
+                      {activeRoadmap ? activeRoadmap.name : 'My Programs'}
+                    </h2>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {displayedPrograms.length} active
+                    </span>
+                  </div>
+                  <button
+                    className="flex items-center justify-center px-6 py-2 bg-black text-white font-bold uppercase tracking-wider border-2 border-black rounded-none shadow-[4px_4px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000] transition-all duration-150 active:translate-x-[4px] active:translate-y-[4px] active:shadow-none"
+                    onClick={() => {
+                      // TODO: Implement intake form modal
+                      console.log('Open intake form');
+                    }}
+                  >
+                    + INTAKE FORM
+                  </button>
                 </div>
                 {displayedPrograms.length > 0 ? (
                   displayedPrograms.map(program => (
