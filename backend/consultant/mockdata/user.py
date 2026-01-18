@@ -94,6 +94,11 @@ class TranscriptInfo:
     file_id: Optional[str] = None
     file_name: Optional[str] = None
 
+@dataclass
+class Program:
+    school: str
+    program: str
+
 
 # -------------------------
 # Root ADT (your "User")
@@ -110,6 +115,8 @@ class User:
     pathway_preference: PathwayPreference
     links: Links
 
+
+    programs: List[Program]    
     transcript: Optional[TranscriptInfo] = None
     roadmap: Optional[Roadmap] = None
 

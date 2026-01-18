@@ -1,12 +1,13 @@
 """
-Gemini Consultant Chatbot
-A wrapper around Google's Gemini API that provides personalized academic consulting.
+DigitalOcean Agent Consultant
+A wrapper around DigitalOcean Agent API that provides personalized academic consulting.
 """
 
 import os
-from typing import List, Dict
+import json
+import requests
+from typing import List, Dict, Optional
 from pathlib import Path
-import google.generativeai as genai
 from consultant.mockdata.user import User, Grade12OrAbove, BelowGrade12
 
 
@@ -29,32 +30,31 @@ class ConsultantError(Exception):
 
 class Consultant:
     """
-    AI-powered consultant that provides personalized academic guidance using Gemini API.
+    AI-powered consultant that provides personalized academic guidance using DigitalOcean Agent.
     """
     
-    def __init__(self, api_key: str = None):
+    def __init__(self):
         """
-        Initialize the consultant with Gemini API credentials.
-        
-        Args:
-            api_key: Google Gemini API key. If None, reads from GEMINI_API_KEY env var.
+        Initialize the consultant with DigitalOcean Agent credentials.
         
         Raises:
-            ConsultantError: If API key is missing or invalid
+            ConsultantError: If credentials are missing or invalid
         """
         # Load .env file
         load_env()
         
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.agent_endpoint = os.getenv("AGENT_ENDPOINT")
+        self.agent_access_key = os.getenv("AGENT_ACCESS_KEY")
         
-        if not self.api_key:
-            raise ConsultantError("Gemini API key is required. Set GEMINI_API_KEY environment variable.")
+        if not self.agent_endpoint or not self.agent_access_key:
+            raise ConsultantError("AGENT_ENDPOINT and AGENT_ACCESS_KEY are required in .env file")
         
-        try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-        except Exception as e:
-            raise ConsultantError(f"Failed to initialize Gemini API: {str(e)}")
+        # Ensure endpoint has the correct format
+        if not self.agent_endpoint.endswith('/api/v1/chat/completions'):
+            if self.agent_endpoint.endswith('/'):
+                self.agent_endpoint = self.agent_endpoint + 'api/v1/chat/completions'
+            else:
+                self.agent_endpoint = self.agent_endpoint + '/api/v1/chat/completions'
         
         self.conversation_history: List[Dict[str, str]] = []
         self.user_profile: User = None
@@ -70,7 +70,7 @@ class Consultant:
     
     def _format_user_context(self) -> str:
         """
-        Format user profile data into a structured context string for Gemini.
+        Format user profile data into a structured context string.
         
         Returns:
             Formatted context string describing the user's profile
@@ -115,6 +115,7 @@ class Consultant:
                     reason_str = f" - {course.reason}" if course.reason else ""
                     context_parts.append(f"  * {course.course_name}{code_str}{reason_str}")
         
+                
         # Format extracurriculars
         if user.extracurriculars:
             context_parts.append("")
@@ -143,6 +144,7 @@ class Consultant:
         context_parts.append(f"- Co-op Importance: {user.pathway_preference.coop_importance}/10")
         context_parts.append(f"- Research Importance: {user.pathway_preference.research_importance}/10")
         
+        
         # Format links if available
         if user.links.resume_url or user.links.linkedin_url or user.links.github_url:
             context_parts.append("")
@@ -154,6 +156,13 @@ class Consultant:
             if user.links.github_url:
                 context_parts.append(f"- GitHub: {user.links.github_url}")
         
+        # Format programs
+        if user.programs:
+            context_parts.append("")
+            context_parts.append("Chosen Programs:")
+            for program in user.programs:
+                context_parts.append(f"- {program.school}: {program.program}")
+
         # Format roadmap if available
         if user.roadmap and user.roadmap.tasks:
             context_parts.append("")
@@ -176,7 +185,7 @@ class Consultant:
             question: User's question or message
         
         Returns:
-            Consultant's response based on user profile and conversation history
+            Consultant's response from DigitalOcean Agent
         
         Raises:
             ConsultantError: If API call fails or other errors occur
@@ -185,52 +194,225 @@ class Consultant:
             raise ConsultantError("Question cannot be empty")
         
         try:
-            # Build the full prompt with context
-            prompt_parts = []
+            # Build messages array
+            messages = []
             
-            # Add user profile context
+            # Add user profile context as system message
             user_context = self._format_user_context()
             if user_context:
-                prompt_parts.append("You are an academic consultant helping a student. Here is their profile:")
-                prompt_parts.append(user_context)
-                prompt_parts.append("")
-                prompt_parts.append("Provide personalized advice based on this profile.")
-                prompt_parts.append("")
+                system_message = f"Here is the student's profile:\n\n{user_context}\n\nProvide personalized advice based on this profile."
+                messages.append({
+                    "role": "system",
+                    "content": system_message
+                })
             
             # Add conversation history
-            if self.conversation_history:
-                prompt_parts.append("Previous conversation:")
-                for msg in self.conversation_history:
-                    prompt_parts.append(f"{msg['role']}: {msg['content']}")
-                prompt_parts.append("")
+            for msg in self.conversation_history:
+                messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
             
             # Add current question
-            prompt_parts.append(f"Student: {question}")
+            messages.append({
+                "role": "user",
+                "content": question
+            })
             
-            full_prompt = "\n".join(prompt_parts)
+            # Prepare request payload
+            payload = {
+                "messages": messages,
+                "stream": False,
+                "include_functions_info": True,
+                "include_retrieval_info": True,
+                "include_guardrails_info": False
+            }
             
-            # Call Gemini API
-            response = self.model.generate_content(full_prompt)
+            # Set headers
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.agent_access_key}"
+            }
             
-            if not response or not response.text:
-                raise ConsultantError("Received empty response from Gemini API")
+            # Call DigitalOcean Agent API
+            response = requests.post(
+                self.agent_endpoint,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
             
-            answer = response.text
+            # Check for errors
+            if response.status_code != 200:
+                raise ConsultantError(f"Agent API returned status {response.status_code}: {response.text}")
+            
+            # Parse response
+            response_data = response.json()
+            
+            if not response_data.get("choices"):
+                raise ConsultantError("No response from agent")
+            
+            answer = response_data["choices"][0]["message"]["content"]
             
             # Update conversation history
-            self.conversation_history.append({"role": "Student", "content": question})
-            self.conversation_history.append({"role": "Consultant", "content": answer})
+            self.conversation_history.append({"role": "user", "content": question})
+            self.conversation_history.append({"role": "assistant", "content": answer})
             
             return answer
         
+        except requests.exceptions.Timeout:
+            raise ConsultantError("Request to agent timed out. Please try again.")
+        except requests.exceptions.RequestException as e:
+            raise ConsultantError(f"Failed to connect to agent: {str(e)}")
         except Exception as e:
-            if "API key" in str(e):
-                raise ConsultantError("Invalid API key. Please check your credentials.")
-            elif "quota" in str(e).lower() or "rate limit" in str(e).lower():
-                raise ConsultantError("API rate limit exceeded. Please try again later.")
-            else:
-                raise ConsultantError(f"Failed to generate response: {str(e)}")
+            raise ConsultantError(f"Failed to generate response: {str(e)}")
     
     def clear_history(self):
         """Clear the conversation history."""
         self.conversation_history = []
+    
+    def generate_roadmap(self) -> Dict:
+        """
+        Generate a comprehensive roadmap with timeline for each program in the user's context.
+        Breaks down the application process for each program into atomic steps.
+        
+        Returns:
+            Dictionary containing the admissions cycle and schools with their tasks
+        
+        Raises:
+            ConsultantError: If user profile is not set or API call fails
+        """
+        if not self.user_profile:
+            raise ConsultantError("User profile must be set before generating roadmap")
+        
+        # Build the prompt for roadmap generation
+        user_context = self._format_user_context()
+        
+        prompt = f"""Based on the following user context, generate a comprehensive roadmap with timeline for each program the student is applying to. Break down the application process for each program into atomic steps. 
+{user_context}
+
+YOU MUST OUTPUT ONLY VALID JSON. Do not include any explanations, reasoning, or additional text. Output ONLY the JSON object below:
+
+{{
+  "admissionsCycle": "2025-2026",
+  "schools": [
+    {{
+      "schoolName": "School Name",
+      "schoolCode": "CODE",
+      "programName": "Program Name (if applicable)",
+      "tasks": [
+        {{
+          "taskId": "unique-id",
+          "title": "Task Title",
+          "description": "Detailed description of what needs to be done",
+          "deadlineISO": "YYYY-MM-DD",
+          "priority": "Critical|High|Medium|Low",
+          "type": "Administrative|Supplementary|Interview|Submission|Financial|Milestone"
+        }}
+      ]
+    }}
+  ]
+}}
+
+CRITICAL INSTRUCTIONS:
+1. Include all programs the student listed in their profile
+2. Break down each application into atomic, actionable steps
+3. Use realistic deadlines based on typical university timelines (OUAC: Jan 15, McMaster supp: Jan 29, York Boost: Mar 20, UofT supp: Jan 15)
+4. Prioritize tasks appropriately (Critical for must-do items, High for important, Medium for recommended, Low for optional)
+5. Include all relevant task types: Administrative (account setup), Supplementary (essays, forms), Interview, Submission, Financial (scholarships), and Milestones
+6. Ensure taskIds are unique and follow a consistent naming pattern (e.g., "mc-001", "york-002", "uoft-003")
+7. Order tasks chronologically within each school
+
+OUTPUT ONLY THE JSON OBJECT. NO OTHER TEXT."""
+
+        try:
+            # Build messages for the API call
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are an expert university admissions consultant. You MUST output ONLY valid JSON with no additional text, explanations, or reasoning. Your entire response must be parseable JSON."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+            
+            # Prepare request payload
+            payload = {
+                "messages": messages,
+                "stream": False,
+                "include_functions_info": True,
+                "include_retrieval_info": True,
+                "include_guardrails_info": False
+            }
+            
+            # Set headers
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.agent_access_key}"
+            }
+            
+            # Call DigitalOcean Agent API
+            response = requests.post(
+                self.agent_endpoint,
+                json=payload,
+                headers=headers,
+                timeout=60  # Longer timeout for complex generation
+            )
+            
+            # Check for errors
+            if response.status_code != 200:
+                raise ConsultantError(f"Agent API returned status {response.status_code}: {response.text}")
+            
+            # Parse response
+            response_data = response.json()
+            
+            if not response_data.get("choices"):
+                raise ConsultantError(f"No response from agent. Full response: {response_data}")
+            
+            # Try to get content from either content or reasoning_content
+            message = response_data["choices"][0]["message"]
+            roadmap_text = message.get("content", "")
+            
+            # If content is empty, check reasoning_content (some models put output there)
+            if not roadmap_text or not roadmap_text.strip():
+                roadmap_text = message.get("reasoning_content", "")
+            
+            # Debug: Print the raw response
+            if not roadmap_text or not roadmap_text.strip():
+                raise ConsultantError(f"Agent returned empty response. Full API response: {json.dumps(response_data, indent=2)}")
+            
+            # Extract JSON from markdown code blocks if present
+            original_text = roadmap_text
+            if "```json" in roadmap_text:
+                start = roadmap_text.find("```json") + 7
+                end = roadmap_text.find("```", start)
+                roadmap_text = roadmap_text[start:end].strip()
+            elif "```" in roadmap_text:
+                start = roadmap_text.find("```") + 3
+                end = roadmap_text.find("```", start)
+                roadmap_text = roadmap_text[start:end].strip()
+            
+            # Try to find JSON object in the text
+            if not roadmap_text.strip().startswith("{"):
+                # Look for the first { and last }
+                start_idx = original_text.find("{")
+                end_idx = original_text.rfind("}")
+                if start_idx != -1 and end_idx != -1:
+                    roadmap_text = original_text[start_idx:end_idx+1]
+                else:
+                    raise ConsultantError(f"No JSON object found in response. Response preview: {original_text[:500]}")
+            
+            roadmap_data = json.loads(roadmap_text)
+            
+            return roadmap_data
+        
+        except json.JSONDecodeError as e:
+            raise ConsultantError(f"Failed to parse roadmap JSON: {str(e)}. Response preview: {roadmap_text[:500] if roadmap_text else 'empty'}")
+        except requests.exceptions.Timeout:
+            raise ConsultantError("Request to agent timed out. Please try again.")
+        except requests.exceptions.RequestException as e:
+            raise ConsultantError(f"Failed to connect to agent: {str(e)}")
+        except Exception as e:
+            raise ConsultantError(f"Failed to generate roadmap: {str(e)}")
