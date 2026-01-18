@@ -2,7 +2,14 @@
 University Scoring Engine - Matches students to programs based on multiple criteria.
 """
 
-from data.mock_universities import UNIVERSITY_DB
+from services.database import fetch_university_data
+
+def get_university_db():
+    """
+    Get university database from MongoDB.
+    Raises an exception if MongoDB is unavailable or not configured.
+    """
+    return fetch_university_data()
 
 
 class UniversityMatcher:
@@ -106,48 +113,109 @@ class UniversityMatcher:
     def get_ranked_programs(self):
         results = []
         
+        # Fetch university data from MongoDB
+        UNIVERSITY_DB = get_university_db()
+        
         for uni_name, uni_data in UNIVERSITY_DB.items():
-            # Get university-level ec_quality
+            # Validate university-level fields
+            if 'ec_quality' not in uni_data:
+                raise ValueError(f"University '{uni_name}' missing required field 'ec_quality'. Available fields: {list(uni_data.keys())}")
+            
+            if 'co-op' not in uni_data:
+                raise ValueError(f"University '{uni_name}' missing required field 'co-op'. Available fields: {list(uni_data.keys())}")
+            
+            if 'programs' not in uni_data:
+                raise ValueError(f"University '{uni_name}' missing required field 'programs'. Available fields: {list(uni_data.keys())}")
+            
+            # Get university-level metadata
             uni_ec_quality = uni_data['ec_quality']
+            uni_coop_options = uni_data['co-op']  # University-level co-op options
             programs = uni_data['programs']
             
+            if not isinstance(programs, dict):
+                raise ValueError(f"University '{uni_name}': 'programs' must be a dictionary, got {type(programs)}")
+            
             for prog_name, details in programs.items():
-                
-                # 1. Component Scores
-                s_acad = self._calculate_academic_score(
-                    details['recommended_average'][0],
-                    details['recommended_average'][1],
-                    details['required_courses']
-                )
-                
-                s_int = self._calculate_interest_score(details['interest_fields'])
-                
-                # Use university-level ec_quality instead of program-level
-                s_ec = self._calculate_ec_score(uni_ec_quality)
-                
-                # 2. Weighted Base Calculation
-                base_score = (
-                    (s_acad * self.weights['academic']) +
-                    (s_int * self.weights['interest']) +
-                    (s_ec * self.weights['ec'])
-                )
-                
-                # 3. Apply Multipliers (Co-op)
-                coop_mult = self._calculate_coop_fit(details['co-op'])
-                
-                final_score = base_score * coop_mult * 100  # Convert to percentage
+                try:
+                    # Validate required program fields
+                    if 'recommended_average' not in details:
+                        raise KeyError(f"Program '{prog_name}' at university '{uni_name}' missing 'recommended_average'")
+                    
+                    recommended_avg = details['recommended_average']
+                    if not isinstance(recommended_avg, list):
+                        raise ValueError(
+                            f"Program '{prog_name}' at university '{uni_name}': "
+                            f"'recommended_average' must be a list, got {type(recommended_avg)}"
+                        )
+                    
+                    if len(recommended_avg) == 1:
+                        recommended_avg = [recommended_avg[0] - 2, recommended_avg[0] + 2]
 
-                results.append({
-                    "university": uni_name,
-                    "program": prog_name,
-                    "score": round(final_score, 1),
-                    "breakdown": {
-                        "academic": round(s_acad, 2),
-                        "interest": round(s_int, 2),
-                        "ec": round(s_ec, 2),
-                        "coop_fit": round(coop_mult, 2)
-                    }
-                })
+                    if len(recommended_avg) < 2:
+                        raise ValueError(
+                            f"Program '{prog_name}' at university '{uni_name}': "
+                            f"'recommended_average' must have at least 2 elements (min and max), "
+                            f"got {len(recommended_avg)} elements: {recommended_avg}"
+                        )
+                    
+                    # Validate other fields with defaults
+                    required_courses = details.get('required_courses', [])
+                    if not isinstance(required_courses, list):
+                        raise ValueError(
+                            f"Program '{prog_name}' at university '{uni_name}': "
+                            f"'required_courses' must be a list, got {type(required_courses)}"
+                        )
+                    
+                    interests = details.get('interests', [])
+                    if not isinstance(interests, list):
+                        raise ValueError(
+                            f"Program '{prog_name}' at university '{uni_name}': "
+                            f"'interests' must be a list, got {type(interests)}"
+                        )
+                    
+                    # 1. Component Scores
+                    s_acad = self._calculate_academic_score(
+                        recommended_avg[0],
+                        recommended_avg[1],
+                        required_courses
+                    )
+                    
+                    s_int = self._calculate_interest_score(interests)
+                    
+                    # Use university-level ec_quality
+                    s_ec = self._calculate_ec_score(uni_ec_quality)
+                    
+                    # 2. Weighted Base Calculation
+                    base_score = (
+                        (s_acad * self.weights['academic']) +
+                        (s_int * self.weights['interest']) +
+                        (s_ec * self.weights['ec'])
+                    )
+                    
+                    # 3. Apply Multipliers (Co-op) - use university-level co-op options
+                    coop_mult = self._calculate_coop_fit(uni_coop_options)
+                    
+                    final_score = base_score * coop_mult * 100  # Convert to percentage
+
+                    results.append({
+                        "university": uni_name,
+                        "program": prog_name,
+                        "score": round(final_score, 1),
+                        "breakdown": {
+                            "academic": round(s_acad, 2),
+                            "interest": round(s_int, 2),
+                            "ec": round(s_ec, 2),
+                            "coop_fit": round(coop_mult, 2)
+                        }
+                    })
+                except (KeyError, ValueError, IndexError, TypeError) as e:
+                    # Provide detailed error information
+                    raise ValueError(
+                        f"Error processing program '{prog_name}' at university '{uni_name}': {e}. "
+                        f"Available fields: {list(details.keys())}. "
+                        f"recommended_average value: {details.get('recommended_average', 'MISSING')}. "
+                        f"recommended_average type: {type(details.get('recommended_average', None))}"
+                    ) from e
         
         # Return sorted by highest score
         return sorted(results, key=lambda x: x['score'], reverse=True)
