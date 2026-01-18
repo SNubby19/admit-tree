@@ -9,7 +9,7 @@ UNIVERSITY_DB = {
             "recommended_average": [92, 98],
             "ec_quality": 3,
             "interest_fields": ["circuits", "hardware", "physics", "robotics"],
-            "required_courses": ["math", "physics", "chemistry"],
+            "required_courses": ["MHF4U", "MCV4U", "SPH4U", "SCH4U"],
             "co-op": ["yes"]  # Only Co-op available
         },
         "Arts and Business": {
@@ -25,14 +25,14 @@ UNIVERSITY_DB = {
             "recommended_average": [94, 99],
             "ec_quality": 3,
             "interest_fields": ["software", "theory", "math", "ai", "data"],
-            "required_courses": ["math"],
+            "required_courses": ["MHF4U"],
             "co-op": ["yes", "no"]  # ASIP (Co-op) and Regular available
         },
         "Mechanical Engineering": {
             "recommended_average": [88, 95],
             "ec_quality": 3,
             "interest_fields": ["machines", "structures", "physics", "cars"],
-            "required_courses": ["math", "physics", "chemistry"],
+            "required_courses": ["MHF4U", "MCV4U", "SPH4U", "SCH4U"],
             "co-op": ["yes"]  # PEY (Co-op) is effectively standard
         }
     }
