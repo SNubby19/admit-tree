@@ -1,4 +1,4 @@
-import { UniversityProgram } from '@/types/application';
+import { UniversityProgram, TaskStatus } from '@/types/application';
 import { ProgressBar } from './ProgressBar';
 import { StepCard } from './StepCard';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,35 @@ import { ArrowLeft, Calendar, GraduationCap, Clock } from 'lucide-react';
 interface FocusedProgramViewProps {
   program: UniversityProgram;
   onBack: () => void;
+  onStepStatusChange?: (programId: string, stepId: string, newStatus: TaskStatus) => void;
 }
 
-export function FocusedProgramView({ program, onBack }: FocusedProgramViewProps) {
+const getNextStatus = (currentStatus: TaskStatus): TaskStatus => {
+  switch (currentStatus) {
+    case 'todo':
+      return 'in-progress';
+    case 'in-progress':
+      return 'complete';
+    case 'complete':
+      return 'todo';
+    default:
+      return 'todo';
+  }
+};
+
+export function FocusedProgramView({ program, onBack, onStepStatusChange }: FocusedProgramViewProps) {
   const completedSteps = program.steps.filter(s => s.status === 'complete').length;
   const inProgressSteps = program.steps.filter(s => s.status === 'in-progress').length;
   const todoSteps = program.steps.filter(s => s.status === 'todo').length;
+
+  const handleStepClick = (stepId: string) => {
+    if (!onStepStatusChange) return;
+    const step = program.steps.find(s => s.id === stepId);
+    if (step) {
+      const newStatus = getNextStatus(step.status);
+      onStepStatusChange(program.id, stepId, newStatus);
+    }
+  };
 
   // Calculate days until deadline
   const deadline = new Date(program.deadline);
@@ -91,7 +114,12 @@ export function FocusedProgramView({ program, onBack }: FocusedProgramViewProps)
         </div>
         <div className="p-6 space-y-4">
           {program.steps.map((step, index) => (
-            <StepCard key={step.id} step={step} index={index} />
+            <StepCard 
+              key={step.id} 
+              step={step} 
+              index={index} 
+              onStatusToggle={() => handleStepClick(step.id)}
+            />
           ))}
         </div>
       </div>

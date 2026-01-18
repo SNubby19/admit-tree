@@ -8,7 +8,7 @@ import { ChatbotButton } from '@/components/ChatbotButton';
 import { FocusedProgramView } from '@/components/FocusedProgramView';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { Star, Trash2 } from 'lucide-react';
-import { UniversityProgram } from '@/types/application';
+import { UniversityProgram, TaskStatus } from '@/types/application';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -46,10 +46,53 @@ const Dashboard = () => {
   const totalPrograms = programs.length;
   const allSteps = programs.flatMap(p => p.steps);
   const completedSteps = allSteps.filter(s => s.status === 'complete').length;
+  const inProgressSteps = allSteps.filter(s => s.status === 'in-progress').length;
+  const todoSteps = allSteps.filter(s => s.status === 'todo').length;
   const totalSteps = allSteps.length;
   const overallProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   const completedBonusTasks = globalBonusTasks.filter(t => t.isComplete).length;
+
+  // Update program progress when steps change
+  const updateProgramProgress = (program: UniversityProgram): UniversityProgram => {
+    const completed = program.steps.filter(s => s.status === 'complete').length;
+    const total = program.steps.length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { ...program, overallProgress: progress };
+  };
+
+  // Handle step status change
+  const handleStepStatusChange = (programId: string, stepId: string, newStatus: TaskStatus) => {
+    setPrograms(prevPrograms => {
+      const updatedPrograms = prevPrograms.map(program => {
+        if (program.id === programId) {
+          const updatedSteps = program.steps.map(step =>
+            step.id === stepId ? { ...step, status: newStatus } : step
+          );
+          const updatedProgram = { ...program, steps: updatedSteps };
+          return updateProgramProgress(updatedProgram);
+        }
+        return program;
+      });
+
+      // Persist to localStorage
+      localStorage.setItem("currentPrograms", JSON.stringify(updatedPrograms));
+      
+      // Also update the current roadmap if it exists
+      const currentRoadmap = localStorage.getItem("currentRoadmap");
+      if (currentRoadmap) {
+        try {
+          const roadmap = JSON.parse(currentRoadmap);
+          roadmap.programs = updatedPrograms;
+          localStorage.setItem("currentRoadmap", JSON.stringify(roadmap));
+        } catch (error) {
+          console.error("Failed to update roadmap:", error);
+        }
+      }
+
+      return updatedPrograms;
+    });
+  };
 
   // Get focused program
   const focusedProgram = focusedProgramId
@@ -125,6 +168,7 @@ const Dashboard = () => {
           <FocusedProgramView
             program={focusedProgram}
             onBack={() => setFocusedProgramId(null)}
+            onStepStatusChange={handleStepStatusChange}
           />
         ) : (
           <>
@@ -132,6 +176,8 @@ const Dashboard = () => {
               totalPrograms={displayedPrograms.length}
               overallProgress={overallProgress}
               completedTasks={completedSteps}
+              inProgressTasks={inProgressSteps}
+              todoTasks={todoSteps}
               totalTasks={totalSteps}
             />
 
@@ -180,7 +226,10 @@ const Dashboard = () => {
                       onClick={() => handleProgramClick(program.id)}
                       className="cursor-pointer"
                     >
-                      <ProgramCard program={program} />
+                      <ProgramCard 
+                        program={program} 
+                        onStepStatusChange={handleStepStatusChange}
+                      />
                     </div>
                   ))
                 ) : (

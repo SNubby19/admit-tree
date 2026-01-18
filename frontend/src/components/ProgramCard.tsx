@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UniversityProgram } from '@/types/application';
+import { UniversityProgram, TaskStatus } from '@/types/application';
 import { ProgressBar } from './ProgressBar';
 import { StepCard } from './StepCard';
 import { ChevronDown, ChevronUp, Calendar, GraduationCap } from 'lucide-react';
@@ -7,14 +7,38 @@ import { cn } from '@/lib/utils';
 
 interface ProgramCardProps {
   program: UniversityProgram;
+  onStepStatusChange?: (programId: string, stepId: string, newStatus: TaskStatus) => void;
 }
 
-export function ProgramCard({ program }: ProgramCardProps) {
+const getNextStatus = (currentStatus: TaskStatus): TaskStatus => {
+  switch (currentStatus) {
+    case 'todo':
+      return 'in-progress';
+    case 'in-progress':
+      return 'complete';
+    case 'complete':
+      return 'todo';
+    default:
+      return 'todo';
+  }
+};
+
+export function ProgramCard({ program, onStepStatusChange }: ProgramCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const completedSteps = program.steps.filter(s => s.status === 'complete').length;
   const inProgressSteps = program.steps.filter(s => s.status === 'in-progress').length;
   const todoSteps = program.steps.filter(s => s.status === 'todo').length;
+
+  const handleStepClick = (stepId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card expansion when clicking step
+    if (!onStepStatusChange) return;
+    const step = program.steps.find(s => s.id === stepId);
+    if (step) {
+      const newStatus = getNextStatus(step.status);
+      onStepStatusChange(program.id, stepId, newStatus);
+    }
+  };
 
   return (
     <div className="bg-card border-2 border-border shadow-sm hover:shadow-md transition-shadow">
@@ -75,7 +99,12 @@ export function ProgramCard({ program }: ProgramCardProps) {
           <h4 className="font-bold text-sm uppercase tracking-wider mb-4">Application Steps</h4>
           <div className="space-y-3">
             {program.steps.map((step, index) => (
-              <StepCard key={step.id} step={step} index={index} />
+              <StepCard 
+                key={step.id} 
+                step={step} 
+                index={index}
+                onStatusToggle={(e) => handleStepClick(step.id, e)}
+              />
             ))}
           </div>
         </div>

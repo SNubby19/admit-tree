@@ -26,7 +26,7 @@ import { MultiSelect, Option } from "@/components/ui/multi-select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { UniversityProgram } from "@/types/application";
+import { UniversityProgram, ApplicationStep } from "@/types/application";
 import { ProgramSelectionModal } from "@/components/ProgramSelectionModal";
 
 const extraCurricularSchema = z.object({
@@ -287,19 +287,75 @@ const Intake = () => {
         name: "courses_taken",
     });
 
+    // Generate default steps for a program
+    const generateDefaultSteps = (programId: string, deadline: string): ApplicationStep[] => {
+        const deadlineDate = new Date(deadline);
+        
+        // Calculate due dates relative to deadline
+        const ouacAccountDue = new Date(deadlineDate);
+        ouacAccountDue.setDate(ouacAccountDue.getDate() - 90); // 90 days before deadline
+        
+        const ouacApplicationDue = new Date(deadlineDate);
+        ouacApplicationDue.setDate(ouacApplicationDue.getDate() - 60); // 60 days before deadline
+        
+        const supplementaryDue = new Date(deadlineDate);
+        supplementaryDue.setDate(supplementaryDue.getDate() - 5); // 5 days before deadline
+        
+        const trackStatusDue = new Date(deadlineDate);
+        trackStatusDue.setDate(trackStatusDue.getDate() + 30); // 30 days after deadline
+        
+        return [
+            {
+                id: `${programId}-1`,
+                title: 'Create OUAC Account',
+                description: 'Register for Ontario Universities Application Centre',
+                status: 'todo',
+                dueDate: ouacAccountDue.toISOString().split('T')[0],
+                priority: 'high',
+            },
+            {
+                id: `${programId}-2`,
+                title: 'Submit OUAC Application',
+                description: 'Complete and submit your 101 application through OUAC',
+                status: 'todo',
+                dueDate: ouacApplicationDue.toISOString().split('T')[0],
+                priority: 'high',
+            },
+            {
+                id: `${programId}-3`,
+                title: 'Complete Supplementary Application',
+                description: 'Submit any required supplementary forms or essays',
+                status: 'todo',
+                dueDate: supplementaryDue.toISOString().split('T')[0],
+                priority: 'high',
+            },
+            {
+                id: `${programId}-4`,
+                title: 'Track Application Status',
+                description: 'Monitor your application status through the university portal',
+                status: 'todo',
+                dueDate: trackStatusDue.toISOString().split('T')[0],
+                priority: 'low',
+            },
+        ];
+    };
+
     const handleProgramSelection = (selectedIndices: number[]) => {
         if (!pendingFormData) return;
 
         // Transform selected rankings to UniversityProgram format
         const selectedPrograms: UniversityProgram[] = selectedIndices.map((index) => {
             const ranking = programRankings[index];
+            const programId = `program-${index + 1}`;
+            const deadline = "2025-01-15"; // Default deadline, can be enhanced later
+            
             return {
-                id: `program-${index + 1}`,
+                id: programId,
                 universityName: ranking.university,
                 programName: ranking.program,
-                deadline: "2025-01-15", // Default deadline, can be enhanced later
+                deadline: deadline,
                 overallProgress: 0, // New programs start at 0%
-                steps: [], // Can be populated later
+                steps: generateDefaultSteps(programId, deadline),
                 bonusTasks: [],
             };
         });

@@ -1,4 +1,4 @@
-import { ApplicationStep } from '@/types/application';
+import { ApplicationStep, TaskStatus } from '@/types/application';
 import { StatusBadge } from './StatusBadge';
 import { Calendar, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface StepCardProps {
   step: ApplicationStep;
   index: number;
+  onStatusToggle?: (e?: React.MouseEvent) => void;
 }
 
 const priorityConfig = {
@@ -14,12 +15,33 @@ const priorityConfig = {
   low: 'border-l-4 border-l-muted-foreground',
 };
 
-export function StepCard({ step, index }: StepCardProps) {
+const getNextStatus = (currentStatus: TaskStatus): TaskStatus => {
+  switch (currentStatus) {
+    case 'todo':
+      return 'in-progress';
+    case 'in-progress':
+      return 'complete';
+    case 'complete':
+      return 'todo';
+    default:
+      return 'todo';
+  }
+};
+
+export function StepCard({ step, index, onStatusToggle }: StepCardProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (onStatusToggle) {
+      onStatusToggle(e);
+    }
+  };
+
   return (
     <div
+      onClick={handleClick}
       className={cn(
         'bg-card border-2 border-border p-4 shadow-xs hover:shadow-sm transition-shadow',
-        priorityConfig[step.priority]
+        priorityConfig[step.priority],
+        onStatusToggle && 'cursor-pointer hover:border-primary'
       )}
     >
       <div className="flex items-start justify-between gap-3">
