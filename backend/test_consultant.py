@@ -5,7 +5,7 @@ Terminal test script for the Gemini Consultant
 from consultant.consultant import Consultant, ConsultantError
 from consultant.mockdata.user import (
     User, BelowGrade12, Extracurricular, PathwayPreference, Links,
-    CourseWithGrade, PlannedCourse, Task, Roadmap
+    CourseWithGrade, PlannedCourse, Task, Roadmap, Subtask
 )
 
 

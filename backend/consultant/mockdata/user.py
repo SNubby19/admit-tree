@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Optional, Literal, Union
+from enum import Enum
 
 
 # -------------------------
@@ -119,9 +120,21 @@ class User:
 # -------------------------
 @dataclass
 class Task:
+    title:str
     content: str
     deadline: str  # ISO 8601 format: "YYYY-MM-DD"
     status: TaskStatus = "to do"
+    subtasks: Optional[List['Subtask']] = None
+
+@dataclass
+class Subtask:
+    content: str
+    status: TaskStatus = "to do"
+
+class IssueType(Enum):
+    DIFFICULT_TASK = "difficult_task"
+    NONE = "none"
+
 
 
 @dataclass
