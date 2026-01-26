@@ -271,148 +271,314 @@ class Consultant:
         """Clear the conversation history."""
         self.conversation_history = []
     
-    def generate_roadmap(self) -> Dict:
-        """
-        Generate a comprehensive roadmap with timeline for each program in the user's context.
-        Breaks down the application process for each program into atomic steps.
+#     def generate_program_roadmap(self, programs: List) -> Dict:
+#         """
+#         Generate a roadmap for a list of programs without requiring a full user profile.
         
-        Returns:
-            Dictionary containing the admissions cycle and schools with their tasks
+#         Args:
+#             programs: List of Program objects with school and program fields
         
-        Raises:
-            ConsultantError: If user profile is not set or API call fails
-        """
-        if not self.user_profile:
-            raise ConsultantError("User profile must be set before generating roadmap")
+#         Returns:
+#             Dictionary containing the admissions cycle and schools with their tasks
         
-        # Build the prompt for roadmap generation
-        user_context = self._format_user_context()
+#         Raises:
+#             ConsultantError: If programs list is empty or API call fails
+#         """
+#         if not programs:
+#             raise ConsultantError("Programs list cannot be empty")
         
-        prompt = f"""Based on the following user context, generate a comprehensive roadmap with timeline for each program the student is applying to. Break down the application process for each program into atomic steps. 
-{user_context}
-
-YOU MUST OUTPUT ONLY VALID JSON. Do not include any explanations, reasoning, or additional text. Output ONLY the JSON object below:
-
-{{
-  "admissionsCycle": "2025-2026",
-  "schools": [
-    {{
-      "schoolName": "School Name",
-      "schoolCode": "CODE",
-      "programName": "Program Name (if applicable)",
-      "tasks": [
-        {{
-          "taskId": "unique-id",
-          "title": "Task Title",
-          "description": "Detailed description of what needs to be done",
-          "deadlineISO": "YYYY-MM-DD",
-          "priority": "Critical|High|Medium|Low",
-          "type": "Administrative|Supplementary|Interview|Submission|Financial|Milestone"
-        }}
-      ]
-    }}
-  ]
-}}
-
-CRITICAL INSTRUCTIONS:
-1. Include all programs the student listed in their profile
-2. Break down each application into atomic, actionable steps
-3. Use realistic deadlines based on typical university timelines (OUAC: Jan 15, McMaster supp: Jan 29, York Boost: Mar 20, UofT supp: Jan 15)
-4. Prioritize tasks appropriately (Critical for must-do items, High for important, Medium for recommended, Low for optional)
-5. Include all relevant task types: Administrative (account setup), Supplementary (essays, forms), Interview, Submission, Financial (scholarships), and Milestones
-6. Ensure taskIds are unique and follow a consistent naming pattern (e.g., "mc-001", "york-002", "uoft-003")
-7. Order tasks chronologically within each school
-
-OUTPUT ONLY THE JSON OBJECT. NO OTHER TEXT."""
-
-        try:
-            # Build messages for the API call
-            messages = [
-                {
-                    "role": "system",
-                    "content": "You are an expert university admissions consultant. You MUST output ONLY valid JSON with no additional text, explanations, or reasoning. Your entire response must be parseable JSON."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-            
-            # Prepare request payload
-            payload = {
-                "messages": messages,
-                "stream": False,
-                "include_functions_info": True,
-                "include_retrieval_info": True,
-                "include_guardrails_info": False
-            }
-            
-            # Set headers
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.agent_access_key}"
-            }
-            
-            # Call DigitalOcean Agent API
-            response = requests.post(
-                self.agent_endpoint,
-                json=payload,
-                headers=headers,
-                timeout=60  # Longer timeout for complex generation
-            )
-            
-            # Check for errors
-            if response.status_code != 200:
-                raise ConsultantError(f"Agent API returned status {response.status_code}: {response.text}")
-            
-            # Parse response
-            response_data = response.json()
-            
-            if not response_data.get("choices"):
-                raise ConsultantError(f"No response from agent. Full response: {response_data}")
-            
-            # Try to get content from either content or reasoning_content
-            message = response_data["choices"][0]["message"]
-            roadmap_text = message.get("content", "")
-            
-            # If content is empty, check reasoning_content (some models put output there)
-            if not roadmap_text or not roadmap_text.strip():
-                roadmap_text = message.get("reasoning_content", "")
-            
-            # Debug: Print the raw response
-            if not roadmap_text or not roadmap_text.strip():
-                raise ConsultantError(f"Agent returned empty response. Full API response: {json.dumps(response_data, indent=2)}")
-            
-            # Extract JSON from markdown code blocks if present
-            original_text = roadmap_text
-            if "```json" in roadmap_text:
-                start = roadmap_text.find("```json") + 7
-                end = roadmap_text.find("```", start)
-                roadmap_text = roadmap_text[start:end].strip()
-            elif "```" in roadmap_text:
-                start = roadmap_text.find("```") + 3
-                end = roadmap_text.find("```", start)
-                roadmap_text = roadmap_text[start:end].strip()
-            
-            # Try to find JSON object in the text
-            if not roadmap_text.strip().startswith("{"):
-                # Look for the first { and last }
-                start_idx = original_text.find("{")
-                end_idx = original_text.rfind("}")
-                if start_idx != -1 and end_idx != -1:
-                    roadmap_text = original_text[start_idx:end_idx+1]
-                else:
-                    raise ConsultantError(f"No JSON object found in response. Response preview: {original_text[:500]}")
-            
-            roadmap_data = json.loads(roadmap_text)
-            
-            return roadmap_data
+#         # Format programs for the prompt
+#         programs_text = "\n".join([f"- {p.school}: {p.program}" for p in programs])
         
-        except json.JSONDecodeError as e:
-            raise ConsultantError(f"Failed to parse roadmap JSON: {str(e)}. Response preview: {roadmap_text[:500] if roadmap_text else 'empty'}")
-        except requests.exceptions.Timeout:
-            raise ConsultantError("Request to agent timed out. Please try again.")
-        except requests.exceptions.RequestException as e:
-            raise ConsultantError(f"Failed to connect to agent: {str(e)}")
-        except Exception as e:
-            raise ConsultantError(f"Failed to generate roadmap: {str(e)}")
+#         prompt = f"""I am building a tool that helps students itemize tasks and build a timeline for their university admissions process applying to engineering programs in Ontario. What I need help with from you is after a student selects programs of interest, I need your help in breaking the application process for each program down into atomic steps and then I need you to generate a json of these various tasks sorted by program and school.
+
+# The student has selected the following programs:
+# {programs_text}
+
+# YOU MUST OUTPUT ONLY VALID JSON. Do not include any explanations, reasoning, or additional text.
+
+# Generate a roadmap in this EXACT JSON format:
+# {{
+#   "admissionsCycle": "2025-2026",
+#   "schools": [
+#     {{
+#       "schoolName": "General (OUAC)",
+#       "schoolCode": "OUAC",
+#       "tasks": [
+#         {{
+#           "taskId": "ouac-001",
+#           "title": "Create OUAC Account",
+#           "description": "Create your account on the Ontario Universities' Application Centre (OUAC) website.",
+#           "deadlineISO": "2025-11-01",
+#           "priority": "High",
+#           "type": "Administrative"
+#         }}
+#       ]
+#     }},
+#     {{
+#       "schoolName": "University Name",
+#       "schoolCode": "CODE",
+#       "programName": "Program Name",
+#       "tasks": [
+#         {{
+#           "taskId": "unique-id",
+#           "title": "Task Title",
+#           "description": "Detailed description",
+#           "deadlineISO": "YYYY-MM-DD",
+#           "priority": "Critical|High|Medium|Low",
+#           "type": "Administrative|Supplementary|Interview|Submission|Financial|Milestone"
+#         }}
+#       ]
+#     }}
+#   ]
+# }}
+
+# REQUIREMENTS:
+# 1. Always include a "General (OUAC)" school entry with common OUAC tasks (create account, submit application, etc.)
+# 2. Include a separate entry for each university the student selected
+# 3. Break down each application into atomic, actionable steps
+# 4. Use realistic deadlines: OUAC deadline Jan 15 2026, McMaster supp Jan 29 2026, Waterloo AIF Jan 30 2026, UofT OSP Jan 15 2026, York Boost Mar 20 2026
+# 5. Task types: Administrative (account setup), Supplementary (essays, forms), Interview, Submission, Financial (scholarships), Milestone
+# 6. Priority levels: Critical (must-do), High (important), Medium (recommended), Low (optional)
+# 7. Use unique taskIds like "ouac-001", "uw-002", "uoft-003", "mac-004", "york-005"
+# 8. Order tasks chronologically within each school
+
+# OUTPUT ONLY THE JSON OBJECT. NO OTHER TEXT."""
+
+#         try:
+#             # Build messages for the API call
+#             messages = [
+#                 {
+#                     "role": "system",
+#                     "content": "You are an expert university admissions consultant for Ontario engineering programs. You MUST output ONLY valid JSON with no additional text, explanations, or reasoning. Your entire response must be parseable JSON."
+#                 },
+#                 {
+#                     "role": "user",
+#                     "content": prompt
+#                 }
+#             ]
+            
+#             # Prepare request payload
+#             payload = {
+#                 "messages": messages,
+#                 "stream": False,
+#                 "include_functions_info": True,
+#                 "include_retrieval_info": True,
+#                 "include_guardrails_info": False
+#             }
+            
+#             # Set headers
+#             headers = {
+#                 "Content-Type": "application/json",
+#                 "Authorization": f"Bearer {self.agent_access_key}"
+#             }
+            
+#             # Call DigitalOcean Agent API
+#             response = requests.post(
+#                 self.agent_endpoint,
+#                 json=payload,
+#                 headers=headers,
+#                 timeout=60
+#             )
+            
+#             # Check for errors
+#             if response.status_code != 200:
+#                 raise ConsultantError(f"Agent API returned status {response.status_code}: {response.text}")
+            
+#             # Parse response
+#             response_data = response.json()
+            
+#             if not response_data.get("choices"):
+#                 raise ConsultantError(f"No response from agent. Full response: {response_data}")
+            
+#             # Try to get content from either content or reasoning_content
+#             message = response_data["choices"][0]["message"]
+#             roadmap_text = message.get("content", "")
+            
+#             # If content is empty, check reasoning_content (some models put output there)
+#             if not roadmap_text or not roadmap_text.strip():
+#                 roadmap_text = message.get("reasoning_content", "")
+            
+#             # Debug: Print the raw response
+#             if not roadmap_text or not roadmap_text.strip():
+#                 raise ConsultantError(f"Agent returned empty response. Full API response: {json.dumps(response_data, indent=2)}")
+            
+#             # Extract JSON from markdown code blocks if present
+#             original_text = roadmap_text
+#             if "```json" in roadmap_text:
+#                 start = roadmap_text.find("```json") + 7
+#                 end = roadmap_text.find("```", start)
+#                 roadmap_text = roadmap_text[start:end].strip()
+#             elif "```" in roadmap_text:
+#                 start = roadmap_text.find("```") + 3
+#                 end = roadmap_text.find("```", start)
+#                 roadmap_text = roadmap_text[start:end].strip()
+            
+#             # Try to find JSON object in the text
+#             if not roadmap_text.strip().startswith("{"):
+#                 # Look for the first { and last }
+#                 start_idx = original_text.find("{")
+#                 end_idx = original_text.rfind("}")
+#                 if start_idx != -1 and end_idx != -1:
+#                     roadmap_text = original_text[start_idx:end_idx+1]
+#                 else:
+#                     raise ConsultantError(f"No JSON object found in response. Response preview: {original_text[:500]}")
+            
+#             roadmap_data = json.loads(roadmap_text)
+            
+#             return roadmap_data
+        
+#         except json.JSONDecodeError as e:
+#             raise ConsultantError(f"Failed to parse roadmap JSON: {str(e)}. Response preview: {roadmap_text[:500] if roadmap_text else 'empty'}")
+#         except requests.exceptions.Timeout:
+#             raise ConsultantError("Request to agent timed out. Please try again.")
+#         except requests.exceptions.RequestException as e:
+#             raise ConsultantError(f"Failed to connect to agent: {str(e)}")
+#         except Exception as e:
+#             raise ConsultantError(f"Failed to generate roadmap: {str(e)}")
+    
+#     def generate_roadmap(self) -> Dict:
+#         """
+#         Generate a comprehensive roadmap with timeline for each program in the user's context.
+#         Breaks down the application process for each program into atomic steps.
+        
+#         Returns:
+#             Dictionary containing the admissions cycle and schools with their tasks
+        
+#         Raises:
+#             ConsultantError: If user profile is not set or API call fails
+#         """
+#         if not self.user_profile:
+#             raise ConsultantError("User profile must be set before generating roadmap")
+        
+#         # Build the prompt for roadmap generation
+#         user_context = self._format_user_context()
+        
+#         prompt = f"""Based on the following user context, generate a comprehensive roadmap with timeline for each program the student is applying to. Break down the application process for each program into atomic steps. 
+# {user_context}
+
+# YOU MUST OUTPUT ONLY VALID JSON. Do not include any explanations, reasoning, or additional text. Output ONLY the JSON object below:
+
+# {{
+#   "admissionsCycle": "2025-2026",
+#   "schools": [
+#     {{
+#       "schoolName": "School Name",
+#       "schoolCode": "CODE",
+#       "programName": "Program Name (if applicable)",
+#       "tasks": [
+#         {{
+#           "taskId": "unique-id",
+#           "title": "Task Title",
+#           "description": "Detailed description of what needs to be done",
+#           "deadlineISO": "YYYY-MM-DD",
+#           "priority": "Critical|High|Medium|Low",
+#           "type": "Administrative|Supplementary|Interview|Submission|Financial|Milestone"
+#         }}
+#       ]
+#     }}
+#   ]
+# }}
+
+# CRITICAL INSTRUCTIONS:
+# 1. Include all programs the student listed in their profile
+# 2. Break down each application into atomic, actionable steps
+# 3. Use realistic deadlines based on typical university timelines (OUAC: Jan 15, McMaster supp: Jan 29, York Boost: Mar 20, UofT supp: Jan 15)
+# 4. Prioritize tasks appropriately (Critical for must-do items, High for important, Medium for recommended, Low for optional)
+# 5. Include all relevant task types: Administrative (account setup), Supplementary (essays, forms), Interview, Submission, Financial (scholarships), and Milestones
+# 6. Ensure taskIds are unique and follow a consistent naming pattern (e.g., "mc-001", "york-002", "uoft-003")
+# 7. Order tasks chronologically within each school
+
+# OUTPUT ONLY THE JSON OBJECT. NO OTHER TEXT."""
+
+#         try:
+#             # Build messages for the API call
+#             messages = [
+#                 {
+#                     "role": "system",
+#                     "content": "You are an expert university admissions consultant. You MUST output ONLY valid JSON with no additional text, explanations, or reasoning. Your entire response must be parseable JSON."
+#                 },
+#                 {
+#                     "role": "user",
+#                     "content": prompt
+#                 }
+#             ]
+            
+#             # Prepare request payload
+#             payload = {
+#                 "messages": messages,
+#                 "stream": False,
+#                 "include_functions_info": True,
+#                 "include_retrieval_info": True,
+#                 "include_guardrails_info": False
+#             }
+            
+#             # Set headers
+#             headers = {
+#                 "Content-Type": "application/json",
+#                 "Authorization": f"Bearer {self.agent_access_key}"
+#             }
+            
+#             # Call DigitalOcean Agent API
+#             response = requests.post(
+#                 self.agent_endpoint,
+#                 json=payload,
+#                 headers=headers,
+#                 timeout=60  # Longer timeout for complex generation
+#             )
+            
+#             # Check for errors
+#             if response.status_code != 200:
+#                 raise ConsultantError(f"Agent API returned status {response.status_code}: {response.text}")
+            
+#             # Parse response
+#             response_data = response.json()
+            
+#             if not response_data.get("choices"):
+#                 raise ConsultantError(f"No response from agent. Full response: {response_data}")
+            
+#             # Try to get content from either content or reasoning_content
+#             message = response_data["choices"][0]["message"]
+#             roadmap_text = message.get("content", "")
+            
+#             # If content is empty, check reasoning_content (some models put output there)
+#             if not roadmap_text or not roadmap_text.strip():
+#                 roadmap_text = message.get("reasoning_content", "")
+            
+#             # Debug: Print the raw response
+#             if not roadmap_text or not roadmap_text.strip():
+#                 raise ConsultantError(f"Agent returned empty response. Full API response: {json.dumps(response_data, indent=2)}")
+            
+#             # Extract JSON from markdown code blocks if present
+#             original_text = roadmap_text
+#             if "```json" in roadmap_text:
+#                 start = roadmap_text.find("```json") + 7
+#                 end = roadmap_text.find("```", start)
+#                 roadmap_text = roadmap_text[start:end].strip()
+#             elif "```" in roadmap_text:
+#                 start = roadmap_text.find("```") + 3
+#                 end = roadmap_text.find("```", start)
+#                 roadmap_text = roadmap_text[start:end].strip()
+            
+#             # Try to find JSON object in the text
+#             if not roadmap_text.strip().startswith("{"):
+#                 # Look for the first { and last }
+#                 start_idx = original_text.find("{")
+#                 end_idx = original_text.rfind("}")
+#                 if start_idx != -1 and end_idx != -1:
+#                     roadmap_text = original_text[start_idx:end_idx+1]
+#                 else:
+#                     raise ConsultantError(f"No JSON object found in response. Response preview: {original_text[:500]}")
+            
+#             roadmap_data = json.loads(roadmap_text)
+            
+#             return roadmap_data
+        
+#         except json.JSONDecodeError as e:
+#             raise ConsultantError(f"Failed to parse roadmap JSON: {str(e)}. Response preview: {roadmap_text[:500] if roadmap_text else 'empty'}")
+#         except requests.exceptions.Timeout:
+#             raise ConsultantError("Request to agent timed out. Please try again.")
+#         except requests.exceptions.RequestException as e:
+#             raise ConsultantError(f"Failed to connect to agent: {str(e)}")
+#         except Exception as e:
+#             raise ConsultantError(f"Failed to generate roadmap: {str(e)}")

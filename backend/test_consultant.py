@@ -2,7 +2,7 @@
 Terminal test script for the Gemini Consultant
 """
 
-from consultant.consultant import Consultant, ConsultantError
+from consultant.geminiConsultant import GeminiConsultant, ConsultantError
 from consultant.mockdata.user import (
     User, BelowGrade12, Extracurricular, PathwayPreference, Links,
     CourseWithGrade, PlannedCourse, Task, Roadmap, Program
@@ -119,84 +119,168 @@ def create_sample_user() -> User:
     )
 
 
-# def test_generate_roadmap():
-#     """Test the generate_roadmap function"""
-#     print("=" * 60)
-#     print("Testing generate_roadmap() Function")
-#     print("=" * 60)
-#     print()
+def test_generate_program_roadmap():
+    """Test the generate_program_roadmap function with just a list of programs"""
+    print("=" * 60)
+    print("Testing generate_program_roadmap() Function (Gemini)")
+    print("=" * 60)
+    print()
     
-#     # Initialize consultant
-#     try:
-#         consultant = Consultant()
-#         print("✓ Consultant initialized successfully")
-#     except ConsultantError as e:
-#         print(f"✗ Failed to initialize consultant: {e}")
-#         return
+    # Initialize consultant
+    try:
+        consultant = GeminiConsultant()
+        print("✓ Gemini Consultant initialized successfully")
+    except ConsultantError as e:
+        print(f"✗ Failed to initialize consultant: {e}")
+        return
     
-#     # Create sample user
-#     user = create_sample_user()
-#     consultant.set_user_profile(user)
-#     print(f"✓ User profile loaded: {user.name}")
-#     print(f"✓ Programs: {len(user.programs)} programs")
-#     for prog in user.programs:
-#         print(f"  - {prog.school}: {prog.program}")
-#     print()
+    # Create program list
+    from consultant.mockdata.user import Program
+    programs = [
+        Program(school="McMaster University", program="civil Engineer"),
+        Program(school="University of Toronto", program="mechanical Engineer"),
+        Program(school="University of Waterloo", program="Mechanical Engineer")
+    ]
     
-#     # Generate roadmap
-#     print("Generating roadmap... (this may take a moment)")
-#     print()
-#     try:
-#         roadmap = consultant.generate_roadmap()
-#         print("✓ Roadmap generated successfully!\n")
+    print(f"✓ Programs to process: {len(programs)}")
+    for prog in programs:
+        print(f"  - {prog.school}: {prog.program}")
+    print()
+    
+    # Generate roadmap
+    print("Generating roadmap... (this may take a moment)")
+    print()
+    try:
+        roadmap = consultant.generate_program_roadmap(programs)
+        print("✓ Roadmap generated successfully!\n")
         
-#         # Display roadmap summary
-#         print(f"Admissions Cycle: {roadmap.get('admissionsCycle', 'N/A')}")
-#         print(f"Number of Schools: {len(roadmap.get('schools', []))}")
-#         print()
+        # Display roadmap summary
+        print(f"Admissions Cycle: {roadmap.get('admissionsCycle', 'N/A')}")
+        print(f"Number of Schools: {len(roadmap.get('schools', []))}")
+        print()
         
-#         # Display detailed roadmap
-#         print("=" * 60)
-#         print("DETAILED ROADMAP")
-#         print("=" * 60)
-#         print(json.dumps(roadmap, indent=2))
-#         print()
+        # Display detailed roadmap
+        print("=" * 60)
+        print("DETAILED ROADMAP")
+        print("=" * 60)
+        print(json.dumps(roadmap, indent=2))
+        print()
         
-#         # Display summary statistics
-#         print("=" * 60)
-#         print("SUMMARY")
-#         print("=" * 60)
-#         for school in roadmap.get('schools', []):
-#             school_name = school.get('schoolName', 'Unknown')
-#             program_name = school.get('programName', '')
-#             tasks = school.get('tasks', [])
+        # Display summary statistics
+        print("=" * 60)
+        print("SUMMARY")
+        print("=" * 60)
+        for school in roadmap.get('schools', []):
+            school_name = school.get('schoolName', 'Unknown')
+            program_name = school.get('programName', '')
+            tasks = school.get('tasks', [])
             
-#             print(f"\n{school_name}")
-#             if program_name:
-#                 print(f"  Program: {program_name}")
-#             print(f"  Total Tasks: {len(tasks)}")
+            print(f"\n{school_name}")
+            if program_name:
+                print(f"  Program: {program_name}")
+            print(f"  Total Tasks: {len(tasks)}")
             
-#             # Count by priority
-#             priority_counts = {}
-#             type_counts = {}
-#             for task in tasks:
-#                 priority = task.get('priority', 'Unknown')
-#                 task_type = task.get('type', 'Unknown')
-#                 priority_counts[priority] = priority_counts.get(priority, 0) + 1
-#                 type_counts[task_type] = type_counts.get(task_type, 0) + 1
+            # Count by priority
+            priority_counts = {}
+            type_counts = {}
+            for task in tasks:
+                priority = task.get('priority', 'Unknown')
+                task_type = task.get('type', 'Unknown')
+                priority_counts[priority] = priority_counts.get(priority, 0) + 1
+                type_counts[task_type] = type_counts.get(task_type, 0) + 1
             
-#             print(f"  By Priority: {dict(priority_counts)}")
-#             print(f"  By Type: {dict(type_counts)}")
+            print(f"  By Priority: {dict(priority_counts)}")
+            print(f"  By Type: {dict(type_counts)}")
         
-#         print("\n✓ Test completed successfully!")
+        print("\n✓ Test completed successfully!")
         
-#     except ConsultantError as e:
-#         print(f"✗ Error generating roadmap: {e}")
-#         print("\nTip: Check that your AGENT_ENDPOINT and AGENT_ACCESS_KEY are correct in .env")
-#     except Exception as e:
-#         print(f"✗ Unexpected error: {e}")
-#         import traceback
-#         traceback.print_exc()
+    except ConsultantError as e:
+        print(f"✗ Error generating roadmap: {e}")
+        print("\nTip: Check that your GEMINI_API_KEY is correct in .env")
+    except Exception as e:
+        print(f"✗ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def test_generate_roadmap():
+    """Test the generate_roadmap function"""
+    print("=" * 60)
+    print("Testing generate_roadmap() Function (Gemini)")
+    print("=" * 60)
+    print()
+    
+    # Initialize consultant
+    try:
+        consultant = GeminiConsultant()
+        print("✓ Gemini Consultant initialized successfully")
+    except ConsultantError as e:
+        print(f"✗ Failed to initialize consultant: {e}")
+        return
+    
+    # Create sample user
+    user = create_sample_user()
+    consultant.set_user_profile(user)
+    print(f"✓ User profile loaded: {user.name}")
+    print(f"✓ Programs: {len(user.programs)} programs")
+    for prog in user.programs:
+        print(f"  - {prog.school}: {prog.program}")
+    print()
+    
+    # Note: GeminiConsultant doesn't have generate_roadmap() method, using generate_program_roadmap instead
+    print("Generating roadmap using program list... (this may take a moment)")
+    print()
+    try:
+        roadmap = consultant.generate_program_roadmap(user.programs)
+        print("✓ Roadmap generated successfully!\n")
+        
+        # Display roadmap summary
+        print(f"Admissions Cycle: {roadmap.get('admissionsCycle', 'N/A')}")
+        print(f"Number of Schools: {len(roadmap.get('schools', []))}")
+        print()
+        
+        # Display detailed roadmap
+        print("=" * 60)
+        print("DETAILED ROADMAP")
+        print("=" * 60)
+        print(json.dumps(roadmap, indent=2))
+        print()
+        
+        # Display summary statistics
+        print("=" * 60)
+        print("SUMMARY")
+        print("=" * 60)
+        for school in roadmap.get('schools', []):
+            school_name = school.get('schoolName', 'Unknown')
+            program_name = school.get('programName', '')
+            tasks = school.get('tasks', [])
+            
+            print(f"\n{school_name}")
+            if program_name:
+                print(f"  Program: {program_name}")
+            print(f"  Total Tasks: {len(tasks)}")
+            
+            # Count by priority
+            priority_counts = {}
+            type_counts = {}
+            for task in tasks:
+                priority = task.get('priority', 'Unknown')
+                task_type = task.get('type', 'Unknown')
+                priority_counts[priority] = priority_counts.get(priority, 0) + 1
+                type_counts[task_type] = type_counts.get(task_type, 0) + 1
+            
+            print(f"  By Priority: {dict(priority_counts)}")
+            print(f"  By Type: {dict(type_counts)}")
+        
+        print("\n✓ Test completed successfully!")
+        
+    except ConsultantError as e:
+        print(f"✗ Error generating roadmap: {e}")
+        print("\nTip: Check that your GEMINI_API_KEY is correct in .env")
+    except Exception as e:
+        print(f"✗ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def main():
@@ -208,11 +292,11 @@ def main():
     
     # Initialize consultant
     try:
-        consultant = Consultant()
-        print("✓ Consultant initialized successfully")
+        consultant = GeminiConsultant()
+        print("✓ Gemini Consultant initialized successfully")
     except ConsultantError as e:
         print(f"✗ Failed to initialize consultant: {e}")
-        print("\nMake sure to set AGENT_ENDPOINT and AGENT_ACCESS_KEY in .env file")
+        print("\nMake sure to set GEMINI_API_KEY in .env file")
         return
     
     # Create sample user
@@ -251,7 +335,7 @@ def main():
             if question.lower() == 'roadmap':
                 print("\nGenerating roadmap... (this may take a moment)")
                 try:
-                    roadmap = consultant.generate_roadmap()
+                    roadmap = consultant.generate_program_roadmap()
                     print("\n✓ Roadmap generated successfully!\n")
                     print(json.dumps(roadmap, indent=2))
                     print()
@@ -278,7 +362,12 @@ if __name__ == "__main__":
     import sys
     
     # Check if user wants to run roadmap test
-    if len(sys.argv) > 1 and sys.argv[1] == "roadmap":
-        test_generate_roadmap()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "roadmap":
+            test_generate_roadmap()
+        elif sys.argv[1] == "programs":
+            test_generate_program_roadmap()
+        else:
+            print("Usage: python test_consultant.py [roadmap|programs]")
     else:
         main()
