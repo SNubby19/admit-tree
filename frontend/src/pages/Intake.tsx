@@ -26,8 +26,63 @@ import { MultiSelect, Option } from "@/components/ui/multi-select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { UniversityProgram } from "@/types/application";
+import { UniversityProgram, RoadmapCategory } from "@/types/application";
 import { ProgramSelectionModal } from "@/components/ProgramSelectionModal";
+import { applicationRoadmaps } from "@/data/mockData";
+
+/**
+ * Categorize a program based on its name
+ */
+function categorizeProgram(programName: string): RoadmapCategory | null {
+    const name = programName.toLowerCase();
+    
+    // Engineering keywords
+    if (name.includes('engineering') || name.includes('mechatronics') || 
+        name.includes('mechanical') || name.includes('electrical') || 
+        name.includes('civil') || name.includes('chemical') || 
+        name.includes('aerospace') || name.includes('biomedical engineering')) {
+        return 'engineering';
+    }
+    
+    // Computer Science keywords
+    if (name.includes('computer science') || name.includes('software') || 
+        name.includes('computing') || name.includes('informatics') ||
+        name.includes('data science') || name.includes('artificial intelligence')) {
+        return 'computer-science';
+    }
+    
+    // Business keywords
+    if (name.includes('business') || name.includes('commerce') || 
+        name.includes('management') || name.includes('finance') || 
+        name.includes('accounting') || name.includes('marketing') ||
+        name.includes('entrepreneurship')) {
+        return 'business';
+    }
+    
+    // Health Sciences keywords
+    if (name.includes('health') || name.includes('medicine') || 
+        name.includes('nursing') || name.includes('kinesiology') || 
+        name.includes('biology') || name.includes('biochemistry') ||
+        name.includes('life sciences') || name.includes('biomedical') && !name.includes('engineering')) {
+        return 'health-sciences';
+    }
+    
+    // Risk Analysis / Actuarial keywords
+    if (name.includes('actuarial') || name.includes('risk') || 
+        name.includes('statistics') || name.includes('mathematical finance')) {
+        return 'risk-analysis';
+    }
+    
+    // Arts keywords
+    if (name.includes('arts') || name.includes('humanities') || 
+        name.includes('social science') || name.includes('psychology') ||
+        name.includes('sociology') || name.includes('history') ||
+        name.includes('english') || name.includes('philosophy')) {
+        return 'arts';
+    }
+    
+    return null;
+}
 
 const extraCurricularSchema = z.object({
     name: z.string().min(1, "Activity name is required"),
@@ -287,59 +342,114 @@ const Intake = () => {
         name: "courses_taken",
     });
 
-    const handleProgramSelection = (selectedIndices: number[]) => {
+    const handleProgramSelection = async (selectedIndices: number[]) => {
         if (!pendingFormData) return;
 
-        // Transform selected rankings to UniversityProgram format
-        const selectedPrograms: UniversityProgram[] = selectedIndices.map((index) => {
-            const ranking = programRankings[index];
-            return {
-                id: `program-${index + 1}`,
-                universityName: ranking.university,
-                programName: ranking.program,
-                deadline: "2025-01-15", // Default deadline, can be enhanced later
-                overallProgress: 0, // New programs start at 0%
-                steps: [], // Can be populated later
-                bonusTasks: [],
+        try {
+            setIsSubmitting(true);
+
+            // Get selected programs from rankings
+            const selectedPrograms = selectedIndices.map((index) => ({
+                university: programRankings[index].university,
+                program: programRankings[index].program,
+            }));
+
+            // Calculate average from courses
+            const average = pendingFormData.courses_taken.reduce((sum, course) => sum + course.grade, 0) / pendingFormData.courses_taken.length;
+            const gradeLevel = parseInt(pendingFormData.grade.replace("Grade ", ""));
+
+            // Prepare student profile for roadmap generation
+            const studentProfile = {
+                grade_level: gradeLevel,
+                average: average,
+                wants_coop: pendingFormData.wants_coop,
+                extra_curriculars: pendingFormData.extra_curriculars.map((ec) => [ec.name, ec.leadership_level]),
+                major_interests: pendingFormData.interests,
+                courses_taken: pendingFormData.courses_taken.map((course) => [course.course, course.grade]),
             };
-        });
 
-        // Store student profile and selected programs
-        const roadmapId = `roadmap-${Date.now()}`;
-        const studentProfile = {
-            name: pendingFormData.name,
-            email: pendingFormData.email,
-            grade: pendingFormData.grade,
-            wants_coop: pendingFormData.wants_coop,
-            extra_curriculars: pendingFormData.extra_curriculars,
-            interests: pendingFormData.interests,
-            courses_taken: pendingFormData.courses_taken,
-        };
+            // Call backend to generate roadmaps
+            const response = await fetch("http://localhost:5001/api/generate-roadmap", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    student_profile: studentProfile,
+                    selected_programs: selectedPrograms,
+                }),
+            });
 
-        const newRoadmap = {
-            id: roadmapId,
-            student_profile: studentProfile,
-            programs: selectedPrograms,
-            createdAt: new Date().toISOString(),
-        };
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || "Failed to generate roadmap");
+            }
 
-        // Store in localStorage
-        const existingRoadmaps = JSON.parse(localStorage.getItem("userRoadmaps") || "[]");
-        existingRoadmaps.push(newRoadmap);
-        localStorage.setItem("userRoadmaps", JSON.stringify(existingRoadmaps));
-        localStorage.setItem("currentRoadmap", JSON.stringify(newRoadmap));
-        localStorage.setItem("currentPrograms", JSON.stringify(selectedPrograms));
+            const roadmapResponse = await response.json();
+            const generatedPrograms: UniversityProgram[] = roadmapResponse.programs;
 
-        setShowSelectionModal(false);
-        setPendingFormData(null);
-        setProgramRankings([]);
+            // Auto-categorize programs and update roadmap programIds
+            const updatedRoadmaps = applicationRoadmaps.map(roadmap => ({
+                ...roadmap,
+                programIds: [...roadmap.programIds] // Clone existing programIds
+            }));
 
-        toast({
-            title: "Roadmap Created!",
-            description: `Added ${selectedPrograms.length} program${selectedPrograms.length !== 1 ? "s" : ""} to your dashboard.`,
-        });
+            generatedPrograms.forEach(program => {
+                const category = categorizeProgram(program.programName);
+                if (category) {
+                    const roadmap = updatedRoadmaps.find(r => r.category === category);
+                    if (roadmap && !roadmap.programIds.includes(program.id)) {
+                        roadmap.programIds.push(program.id);
+                    }
+                }
+            });
 
-        navigate("/dashboard");
+            // Store student profile and generated programs
+            const roadmapId = `roadmap-${Date.now()}`;
+            const studentProfileData = {
+                name: pendingFormData.name,
+                email: pendingFormData.email,
+                grade: pendingFormData.grade,
+                wants_coop: pendingFormData.wants_coop,
+                extra_curriculars: pendingFormData.extra_curriculars,
+                interests: pendingFormData.interests,
+                courses_taken: pendingFormData.courses_taken,
+            };
+
+            const newRoadmap = {
+                id: roadmapId,
+                student_profile: studentProfileData,
+                programs: generatedPrograms,
+                createdAt: new Date().toISOString(),
+            };
+
+            // Store in localStorage
+            const existingRoadmaps = JSON.parse(localStorage.getItem("userRoadmaps") || "[]");
+            existingRoadmaps.push(newRoadmap);
+            localStorage.setItem("userRoadmaps", JSON.stringify(existingRoadmaps));
+            localStorage.setItem("currentRoadmap", JSON.stringify(newRoadmap));
+            localStorage.setItem("currentPrograms", JSON.stringify(generatedPrograms));
+            localStorage.setItem("applicationRoadmaps", JSON.stringify(updatedRoadmaps));
+
+            setShowSelectionModal(false);
+            setPendingFormData(null);
+            setProgramRankings([]);
+            setIsSubmitting(false);
+
+            toast({
+                title: "Roadmap Created!",
+                description: `Generated personalized roadmaps for ${generatedPrograms.length} program${generatedPrograms.length !== 1 ? "s" : ""}.`,
+            });
+
+            navigate("/dashboard");
+        } catch (error) {
+            setIsSubmitting(false);
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to generate roadmap. Please try again.",
+                variant: "destructive",
+            });
+        }
     };
 
     const handleCancelSelection = () => {

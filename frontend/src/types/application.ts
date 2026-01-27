@@ -13,7 +13,7 @@ export interface BonusTask {
   id: string;
   title: string;
   description: string;
-  isComplete: boolean;
+  status:TaskStatus;
   category: 'extracurricular' | 'academic' | 'leadership' | 'community';
 }
 

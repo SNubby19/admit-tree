@@ -24,18 +24,6 @@ def create_sample_user() -> User:
                 CourseWithGrade(course_name="Physics", course_code="SPH4U", grade=91.0),
                 CourseWithGrade(course_name="Chemistry", course_code="SCH4U", grade=93.0),
             ],
-            planned_courses=[
-                PlannedCourse(
-                    course_name="Calculus and Vectors",
-                    course_code="MCV4U",
-                    reason="Required for engineering programs"
-                ),
-                PlannedCourse(
-                    course_name="Computer Science",
-                    course_code="ICS4U",
-                    reason="Interested in software engineering"
-                ),
-            ]
         ),
         extracurriculars=[
             Extracurricular(
@@ -61,10 +49,7 @@ def create_sample_user() -> User:
         pathway_preference=PathwayPreference(
             coop_importance=9,
             research_importance=6
-        ),
-        links=Links(
-            github_url="https://github.com/alexchen"
-        ),
+        )
         programs = [
             Program(
                 school = "McMaster University",

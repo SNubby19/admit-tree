@@ -1,4 +1,5 @@
-import { UniversityProgram } from '@/types/application';
+import { useState, useEffect } from 'react';
+import { UniversityProgram, TaskStatus } from '@/types/application';
 import { ProgressBar } from './ProgressBar';
 import { StepCard } from './StepCard';
 import { Button } from '@/components/ui/button';
@@ -7,15 +8,59 @@ import { ArrowLeft, Calendar, GraduationCap, Clock } from 'lucide-react';
 interface FocusedProgramViewProps {
   program: UniversityProgram;
   onBack: () => void;
+  onProgramUpdate?: (updatedProgram: UniversityProgram) => void;
 }
 
-export function FocusedProgramView({ program, onBack }: FocusedProgramViewProps) {
-  const completedSteps = program.steps.filter(s => s.status === 'complete').length;
-  const inProgressSteps = program.steps.filter(s => s.status === 'in-progress').length;
-  const todoSteps = program.steps.filter(s => s.status === 'todo').length;
+export function FocusedProgramView({ program, onBack, onProgramUpdate }: FocusedProgramViewProps) {
+  const [localProgram, setLocalProgram] = useState(program);
+
+  useEffect(() => {
+    setLocalProgram(program);
+  }, [program]);
+
+  const completedSteps = localProgram.steps.filter(s => s.status === 'complete').length;
+  const inProgressSteps = localProgram.steps.filter(s => s.status === 'in-progress').length;
+  const todoSteps = localProgram.steps.filter(s => s.status === 'todo').length;
+  const totalSteps = localProgram.steps.length;
+  const overallProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  const handleStepStatusChange = (stepId: string, newStatus: TaskStatus) => {
+    const updatedSteps = localProgram.steps.map(step =>
+      step.id === stepId ? { ...step, status: newStatus } : step
+    );
+
+    const updatedProgram = {
+      ...localProgram,
+      steps: updatedSteps,
+      overallProgress,
+    };
+
+    setLocalProgram(updatedProgram);
+    
+    if (onProgramUpdate) {
+      onProgramUpdate(updatedProgram);
+    }
+  };
+
+  const handleBonusTaskStatusChange = (taskId: string, newStatus: TaskStatus) => {
+    const updatedBonusTasks = localProgram.bonusTasks?.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
+    );
+
+    const updatedProgram = {
+      ...localProgram,
+      bonusTasks: updatedBonusTasks || [],
+    };
+
+    setLocalProgram(updatedProgram);
+    
+    if (onProgramUpdate) {
+      onProgramUpdate(updatedProgram);
+    }
+  };
 
   // Calculate days until deadline
-  const deadline = new Date(program.deadline);
+  const deadline = new Date(localProgram.deadline);
   const today = new Date();
   const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -58,13 +103,13 @@ export function FocusedProgramView({ program, onBack }: FocusedProgramViewProps)
           </div>
 
           <div className="text-right">
-            <div className="text-4xl font-mono font-bold">{program.overallProgress}%</div>
+            <div className="text-4xl font-mono font-bold">{overallProgress}%</div>
             <p className="text-sm text-muted-foreground uppercase tracking-wider">Complete</p>
           </div>
         </div>
 
         <div className="mt-6">
-          <ProgressBar value={program.overallProgress} />
+          <ProgressBar value={overallProgress} />
         </div>
 
         {/* Status Summary */}
@@ -90,11 +135,43 @@ export function FocusedProgramView({ program, onBack }: FocusedProgramViewProps)
           <h2 className="font-bold uppercase tracking-wider">Application Steps</h2>
         </div>
         <div className="p-6 space-y-4">
-          {program.steps.map((step, index) => (
-            <StepCard key={step.id} step={step} index={index} />
+          {localProgram.steps.map((step, index) => (
+            <StepCard 
+              key={step.id} 
+              step={step} 
+              index={index}
+              onStatusChange={(newStatus) => handleStepStatusChange(step.id, newStatus)}
+            />
           ))}
         </div>
       </div>
+
+      {/* Bonus Tasks */}
+      {program.bonusTasks && program.bonusTasks.length > 0 && (
+        <div className="bg-card border-2 border-border">
+          <div className="p-4 border-b-2 border-border bg-muted">
+            <h2 className="font-bold uppercase tracking-wider">Bonus Tasks</h2>
+          </div>
+          <div className="p-6 space-y-4">
+            {localProgram.bonusTasks.map((task, index) => (
+              <StepCard 
+                key={task.id} 
+                step={{
+                  id: task.id,
+                  title: task.title,
+                  description: task.description,
+                  status: task.status,
+                  priority: 'low',
+                  dueDate: undefined
+                }} 
+                index={localProgram.steps.length + index}
+                isBonus={true}
+                onStatusChange={(newStatus) => handleBonusTaskStatusChange(task.id, newStatus)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

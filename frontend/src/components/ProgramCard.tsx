@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { UniversityProgram } from '@/types/application';
 import { ProgressBar } from './ProgressBar';
 import { StepCard } from './StepCard';
-import { ChevronDown, ChevronUp, Calendar, GraduationCap } from 'lucide-react';
+import { Pin, Calendar, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProgramCardProps {
   program: UniversityProgram;
+  isPinned: boolean;
+  onTogglePin: () => void;
+  onClick: () => void;
 }
 
-export function ProgramCard({ program }: ProgramCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
+export function ProgramCard({ program, isPinned, onTogglePin, onClick }: ProgramCardProps) {
   const completedSteps = program.steps.filter(s => s.status === 'complete').length;
   const inProgressSteps = program.steps.filter(s => s.status === 'in-progress').length;
   const todoSteps = program.steps.filter(s => s.status === 'todo').length;
@@ -19,9 +20,9 @@ export function ProgramCard({ program }: ProgramCardProps) {
   return (
     <div className="bg-card border-2 border-border shadow-sm hover:shadow-md transition-shadow">
       {/* Card Header - Always Visible */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-5 text-left hover:bg-accent/50 transition-colors"
+      <div
+        onClick={onClick}
+        className="w-full p-5 text-left hover:bg-accent/50 transition-colors cursor-pointer"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -42,11 +43,16 @@ export function ProgramCard({ program }: ProgramCardProps) {
           </div>
           
           <div className="flex flex-col items-end gap-2">
-            {isExpanded ? (
-              <ChevronUp className="h-6 w-6" />
-            ) : (
-              <ChevronDown className="h-6 w-6" />
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              className="p-1 hover:opacity-70 transition-opacity"
+              title={isPinned ? "Unpin from timeline" : "Pin to timeline"}
+            >
+              <Pin className={cn("h-5 w-5", isPinned ? "fill-black text-black" : "text-muted-foreground")} />
+            </button>
           </div>
         </div>
 
@@ -61,23 +67,6 @@ export function ProgramCard({ program }: ProgramCardProps) {
           <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-muted text-muted-foreground text-xs font-mono font-bold border-2 border-border">
             {todoSteps} To Do
           </span>
-        </div>
-      </button>
-
-      {/* Expanded Content - Steps */}
-      <div
-        className={cn(
-          'overflow-hidden transition-all duration-300',
-          isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-        )}
-      >
-        <div className="border-t-2 border-border p-5">
-          <h4 className="font-bold text-sm uppercase tracking-wider mb-4">Application Steps</h4>
-          <div className="space-y-3">
-            {program.steps.map((step, index) => (
-              <StepCard key={step.id} step={step} index={index} />
-            ))}
-          </div>
         </div>
       </div>
     </div>

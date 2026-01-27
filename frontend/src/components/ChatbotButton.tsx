@@ -1,15 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { MessageCircle, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UniversityProgram } from '@/types/application';
 
 interface Message {
   id: string;
   content: string;
   role: 'user' | 'assistant';
   timestamp: Date;
+}
+
+interface IntakeData {
+  name: string;
+  email: string;
+  grade: string;
+  wants_coop: boolean;
+  extra_curriculars: Array<{ name: string; leadership_level: number }>;
+  interests: string[];
+  courses_taken: Array<{ course: string; grade: number }>;
 }
 
 export function ChatbotButton() {
@@ -22,9 +33,37 @@ export function ChatbotButton() {
     },
   ]);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [intakeData, setIntakeData] = useState<IntakeData | null>(null);
+  const [programs, setPrograms] = useState<UniversityProgram[]>([]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  // Load intake data and programs from localStorage
+  useEffect(() => {
+    const loadUserData = () => {
+      try {
+        const storedRoadmap = localStorage.getItem("currentRoadmap");
+        if (storedRoadmap) {
+          const roadmap = JSON.parse(storedRoadmap);
+          if (roadmap.student_profile) {
+            setIntakeData(roadmap.student_profile);
+          }
+        }
+
+        const storedPrograms = localStorage.getItem("currentPrograms");
+        if (storedPrograms) {
+          const parsedPrograms = JSON.parse(storedPrograms);
+          setPrograms(parsedPrograms);
+        }
+      } catch (error) {
+        console.error("Failed to load user data:", error);
+      }
+    };
+
+    loadUserData();
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -34,18 +73,64 @@ export function ChatbotButton() {
     };
     
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
+    setIsLoading(true);
     
-    // Simulate bot response
-    setTimeout(() => {
-      const botMessage: Message = {
+    try {
+      // Call the consultant API with intake data and programs
+      const response = await fetch("http://localhost:5001/api/consultant/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          intake_data: intakeData,
+          programs: programs,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to get response from consultant");
+      }
+
+      const data = await response.json();
+      
+      // Split response into paragraphs and create separate messages
+      const responseText = data.response;
+      const paragraphs = responseText
+        .split(/\n\n+/) // Split on double newlines
+        .map((p: string) => p.trim())
+        .filter((p: string) => p.length > 0);
+      
+      // Add each paragraph as a separate message with a small delay
+      paragraphs.forEach((paragraph: string, index: number) => {
+        setTimeout(() => {
+          const botMessage: Message = {
+            id: `${Date.now()}-${index}`,
+            content: paragraph,
+            role: 'assistant',
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, botMessage]);
+        }, index * 300); // 300ms delay between each bubble
+      });
+    } catch (error) {
+      console.error("Consultant error:", error);
+      
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Thanks for your question! I'm a demo chatbot. In the full version, I'll be able to help you with application advice, essay reviews, deadline reminders, and more.",
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
         role: 'assistant',
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, botMessage]);
-    }, 1000);
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -86,7 +171,7 @@ export function ChatbotButton() {
                 )}
               </div>
               <div className={cn(
-                'flex-1 p-3 border-2 border-border text-sm',
+                'flex-1 p-3 border-2 border-border text-sm whitespace-pre-wrap',
                 message.role === 'user' ? 'bg-primary/10' : 'bg-muted'
               )}>
                 {message.content}
@@ -100,16 +185,22 @@ export function ChatbotButton() {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend()}
               placeholder="Ask about applications..."
               className="border-2 border-border"
+              disabled={isLoading}
             />
             <Button 
               onClick={handleSend}
               size="icon"
               className="border-2 border-border flex-shrink-0"
+              disabled={isLoading}
             >
-              <Send className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>

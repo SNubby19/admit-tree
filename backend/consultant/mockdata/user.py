@@ -20,7 +20,7 @@ Interest = Literal[
 ]
 
 TaskStatus = Literal["done", "to do", "in progress"]
-
+Priority = Literal["low","medium","high"]
 
 # -------------------------
 # Academic ADTs
@@ -129,6 +129,7 @@ class Task:
     content: str
     deadline: str  # ISO 8601 format: "YYYY-MM-DD"
     status: TaskStatus = "to do"
+    priority: priority
 
 
 @dataclass

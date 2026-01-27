@@ -26,10 +26,12 @@ import { Button } from '@/components/ui/button';
 const Dashboard = () => {
   const [focusedProgramId, setFocusedProgramId] = useState<string | null>(null);
   const [activeRoadmapId, setActiveRoadmapId] = useState<string | null>(null);
+  const [pinnedProgramId, setPinnedProgramId] = useState<string | null>(null);
   const [programs, setPrograms] = useState<UniversityProgram[]>([]);
+  const [roadmaps, setRoadmaps] = useState(applicationRoadmaps);
   const { toast } = useToast();
 
-  // Load programs from localStorage on mount
+  // Load programs and roadmaps from localStorage on mount
   useEffect(() => {
     const storedPrograms = localStorage.getItem("currentPrograms");
     if (storedPrograms) {
@@ -38,6 +40,16 @@ const Dashboard = () => {
         setPrograms(parsedPrograms);
       } catch (error) {
         console.error("Failed to parse stored programs:", error);
+      }
+    }
+
+    const storedRoadmaps = localStorage.getItem("applicationRoadmaps");
+    if (storedRoadmaps) {
+      try {
+        const parsedRoadmaps = JSON.parse(storedRoadmaps);
+        setRoadmaps(parsedRoadmaps);
+      } catch (error) {
+        console.error("Failed to parse stored roadmaps:", error);
       }
     }
   }, []);
@@ -49,7 +61,7 @@ const Dashboard = () => {
   const totalSteps = allSteps.length;
   const overallProgress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
-  const completedBonusTasks = globalBonusTasks.filter(t => t.isComplete).length;
+  const completedBonusTasks = globalBonusTasks.filter(t => t.status === 'complete').length;
 
   // Get focused program
   const focusedProgram = focusedProgramId
@@ -58,7 +70,7 @@ const Dashboard = () => {
 
   // Filter programs by active roadmap
   const activeRoadmap = activeRoadmapId
-    ? applicationRoadmaps.find(r => r.id === activeRoadmapId)
+    ? roadmaps.find(r => r.id === activeRoadmapId)
     : null;
 
   const displayedPrograms = activeRoadmap
@@ -83,11 +95,29 @@ const Dashboard = () => {
     setFocusedProgramId(programId);
   };
 
+  const handleTogglePin = (programId: string) => {
+    setPinnedProgramId(pinnedProgramId === programId ? null : programId);
+  };
+
+  const handleProgramUpdate = (updatedProgram: UniversityProgram) => {
+    const updatedPrograms = programs.map(p =>
+      p.id === updatedProgram.id ? updatedProgram : p
+    );
+    setPrograms(updatedPrograms);
+    localStorage.setItem("currentPrograms", JSON.stringify(updatedPrograms));
+  };
+
+  const pinnedProgram = pinnedProgramId
+    ? programs.find(p => p.id === pinnedProgramId)
+    : null;
+
   const handleClearData = () => {
     localStorage.removeItem("currentPrograms");
     localStorage.removeItem("currentRoadmap");
     localStorage.removeItem("userRoadmaps");
+    localStorage.removeItem("applicationRoadmaps");
     setPrograms([]);
+    setRoadmaps(applicationRoadmaps); // Reset to default roadmaps
     setFocusedProgramId(null);
     setActiveRoadmapId(null);
     toast({
@@ -101,7 +131,7 @@ const Dashboard = () => {
       <div className="container max-w-6xl py-8 px-4">
         <div className="flex items-center gap-4 mb-6">
           <RoadmapSidebar
-            roadmaps={applicationRoadmaps}
+            roadmaps={roadmaps}
             activeRoadmapId={activeRoadmapId}
             onSelectRoadmap={handleSelectRoadmap}
             onCreateRoadmap={handleCreateRoadmap}
@@ -113,11 +143,12 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Timeline at the top */}
-        {!focusedProgram && (
+        {/* Timeline at the top - only show if program is pinned */}
+        {!focusedProgram && pinnedProgram && (
           <TaskTimeline
-            programs={displayedPrograms}
+            program={pinnedProgram}
             onTaskClick={handleTimelineTaskClick}
+            onUnpin={() => setPinnedProgramId(null)}
           />
         )}
 
@@ -125,6 +156,7 @@ const Dashboard = () => {
           <FocusedProgramView
             program={focusedProgram}
             onBack={() => setFocusedProgramId(null)}
+            onProgramUpdate={handleProgramUpdate}
           />
         ) : (
           <>
@@ -177,10 +209,14 @@ const Dashboard = () => {
                   displayedPrograms.map(program => (
                     <div
                       key={program.id}
-                      onClick={() => handleProgramClick(program.id)}
                       className="cursor-pointer"
                     >
-                      <ProgramCard program={program} />
+                      <ProgramCard 
+                        program={program}
+                        isPinned={pinnedProgramId === program.id}
+                        onTogglePin={() => handleTogglePin(program.id)}
+                        onClick={() => handleProgramClick(program.id)}
+                      />
                     </div>
                   ))
                 ) : (

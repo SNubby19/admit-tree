@@ -159,8 +159,17 @@ def get_program_recommendations(student_profile):
         if not answer or not answer.strip():
             answer = reasoning
         
+        # Also check if reasoning has more complete JSON than content
+        if reasoning and len(reasoning) > len(answer):
+            # Check if reasoning contains a JSON array
+            reasoning_start = reasoning.find("[")
+            reasoning_end = reasoning.rfind("]")
+            if reasoning_start != -1 and reasoning_end != -1:
+                # Use reasoning if it has a JSON array
+                answer = reasoning
+        
         if not answer or not answer.strip():
-            raise AgentProgramsError(f"Agent returned empty response. Full API response: {json.dumps(result, indent=2)}")
+            raise AgentProgramsError(f"Agent returned empty response. Try submitting again.")
         
         # Parse the JSON response from the agent
         try:
@@ -179,23 +188,28 @@ def get_program_recommendations(student_profile):
             end_idx = answer.rfind("]")
             
             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                answer = answer[start_idx:end_idx+1]
+                json_str = answer[start_idx:end_idx+1]
+                
+                # Try to parse it
+                rankings = json.loads(json_str)
+                
+                if not isinstance(rankings, list):
+                    raise AgentProgramsError(f"Expected JSON array, got {type(rankings)}")
+                
+                if len(rankings) == 0:
+                    raise AgentProgramsError("Agent returned empty rankings array")
+                
+                return rankings
             else:
-                # No JSON array found - agent might still be reasoning
-                raise AgentProgramsError(f"No JSON array found in response. Agent may still be reasoning. Try again.")
-            
-            rankings = json.loads(answer)
-            
-            if not isinstance(rankings, list):
-                raise AgentProgramsError(f"Expected JSON array, got {type(rankings)}")
-            
-            if len(rankings) == 0:
-                raise AgentProgramsError("Agent returned empty rankings array")
-            
-            return rankings
+                # No JSON array found - agent is still reasoning
+                # Check if there's a partial array being built
+                if "university" in answer.lower() and "program" in answer.lower():
+                    raise AgentProgramsError(f"Agent is still generating response. Please try again in a moment.")
+                else:
+                    raise AgentProgramsError(f"No JSON array found in response. Agent may still be reasoning. Try again.")
             
         except json.JSONDecodeError as e:
-            raise AgentProgramsError(f"Failed to parse agent JSON response: {str(e)}. Response preview: {answer[:500] if answer else 'empty'}. Try submitting again.")
+            raise AgentProgramsError(f"Failed to parse agent JSON response: {str(e)}. Try submitting again.")
         
     except requests.exceptions.Timeout:
         raise AgentProgramsError("Agent request timed out")
