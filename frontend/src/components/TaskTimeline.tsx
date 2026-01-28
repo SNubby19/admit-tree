@@ -96,14 +96,14 @@ export const TaskTimeline = ({ program, onTaskClick, onUnpin }: TaskTimelineProp
           variant="ghost"
           size="sm"
           onClick={onUnpin}
-          className="gap-2"
+          className="gap-2 hover:bg-transparent -ml-2"
         >
           <Pin className="h-4 w-4 fill-current" />
           Unpin
         </Button>
       </div>
       
-      <div className="bg-card border-2 border-border p-4">
+      <div className="bg-card border-2 border-border p-4 shadow-xs">
         <ScrollArea className="w-full">
           <div className="flex gap-4 pb-3 min-w-max">
             {timelineTasks.map((task, index) => {
@@ -114,7 +114,7 @@ export const TaskTimeline = ({ program, onTaskClick, onUnpin }: TaskTimelineProp
                 <div
                   key={`${task.step.id}-${index}`}
                   className={cn(
-                    "relative flex-shrink-0 w-48 p-3 border-2 transition-all cursor-pointer hover:translate-y-[-2px] hover:shadow-md",
+                    "relative flex-shrink-0 w-48 p-3 border-2 transition-all cursor-pointer shadow-xs hover:translate-y-[-2px] hover:shadow-md",
                     getStatusStyles(task.step.status, task.date, task.isBonus)
                   )}
                   onClick={() => {

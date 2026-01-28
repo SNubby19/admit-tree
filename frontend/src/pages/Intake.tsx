@@ -514,7 +514,7 @@ const Intake = () => {
             <div className="container mx-auto px-4 max-w-2xl">
                 <Button
                     variant="ghost"
-                    className="mb-6 gap-2"
+                    className="mb-6 gap-2 hover:bg-transparent -ml-4"
                     onClick={() => navigate("/")}
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -823,6 +823,7 @@ const Intake = () => {
                 rankings={programRankings}
                 onConfirm={handleProgramSelection}
                 onCancel={handleCancelSelection}
+                isLoading={isSubmitting}
             />
         </div>
     );

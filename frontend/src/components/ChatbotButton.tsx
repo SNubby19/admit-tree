@@ -139,6 +139,10 @@ export function ChatbotButton() {
         <Button 
           size="lg"
           className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg border-2 border-border z-50"
+          style={{ 
+            backgroundColor: 'hsl(330 100% 71%)', 
+            color: 'hsl(0 0% 100%)' 
+          }}
         >
           <MessageCircle className="h-6 w-6" />
         </Button>

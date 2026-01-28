@@ -6,7 +6,7 @@ interface LayoutProps {
 }
 
 const Header = () => (
-    <header className="bg-white shadow-sm border-b">
+    <header className="bg-background shadow-sm border-b">
         <div className="container mx-auto px-4 py-4">
             <Link to="/" className="text-xl font-bold">AdmitTree</Link>
             {/* Add navigation, logo, etc. */}
@@ -15,8 +15,8 @@ const Header = () => (
 );
 
 const Footer = () => (
-    <footer className="bg-gray-50 border-t mt-auto">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-gray-600">
+    <footer className="bg-background border-t mt-auto">
+        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
             © 2026 AdmitTree. All rights reserved.
         </div>
     </footer>

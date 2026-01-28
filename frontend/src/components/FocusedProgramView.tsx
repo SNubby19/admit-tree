@@ -70,14 +70,14 @@ export function FocusedProgramView({ program, onBack, onProgramUpdate }: Focused
       <Button
         variant="ghost"
         onClick={onBack}
-        className="gap-2 font-bold uppercase tracking-wider text-sm hover:bg-accent"
+        className="gap-2 font-bold uppercase tracking-wider text-sm hover:bg-transparent -ml-4"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to All Programs
       </Button>
 
       {/* Program Header */}
-      <div className="bg-card border-2 border-border p-6">
+      <div className="bg-card border-2 border-border p-6 shadow-sm">
         <div className="flex items-start justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -130,7 +130,7 @@ export function FocusedProgramView({ program, onBack, onProgramUpdate }: Focused
       </div>
 
       {/* Application Steps */}
-      <div className="bg-card border-2 border-border">
+      <div className="bg-card border-2 border-border shadow-sm">
         <div className="p-4 border-b-2 border-border bg-muted">
           <h2 className="font-bold uppercase tracking-wider">Application Steps</h2>
         </div>
@@ -148,7 +148,7 @@ export function FocusedProgramView({ program, onBack, onProgramUpdate }: Focused
 
       {/* Bonus Tasks */}
       {program.bonusTasks && program.bonusTasks.length > 0 && (
-        <div className="bg-card border-2 border-border">
+        <div className="bg-card border-2 border-border shadow-sm">
           <div className="p-4 border-b-2 border-border bg-muted">
             <h2 className="font-bold uppercase tracking-wider">Bonus Tasks</h2>
           </div>

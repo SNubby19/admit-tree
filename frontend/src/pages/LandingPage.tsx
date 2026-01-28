@@ -31,7 +31,7 @@ const LandingPage = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
                 <div className="relative container mx-auto px-4 py-20 lg:py-32">
                     <div className="max-w-3xl mx-auto text-center">
-                        <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
+                        <div className="inline-flex items-center gap-2 bg-card text-primary px-4 py-2 rounded-full mb-6 border-2 border-border">
                             <GraduationCap className="h-5 w-5" />
                             <span className="text-sm font-medium">University Application Tracker</span>
                         </div>
@@ -80,21 +80,27 @@ const LandingPage = () => {
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                        {features.map((feature, index) => (
-                            <Card key={index} className="bg-card border-border hover:shadow-lg transition-shadow">
-                                <CardContent className="p-6 text-center">
-                                    <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 text-primary rounded-lg mb-4">
-                                        <feature.icon className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="text-xl font-semibold text-foreground mb-2">
-                                        {feature.title}
-                                    </h3>
-                                    <p className="text-muted-foreground">
-                                        {feature.description}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        ))}
+                        {features.map((feature, index) => {
+                            const backgrounds = ['#87ceeb', '#ff69b4', '#ffa07a'];
+                            return (
+                                <Card key={index} className="bg-card border-border hover:shadow-lg transition-shadow">
+                                    <CardContent className="p-6 text-center">
+                                        <div 
+                                            className="inline-flex items-center justify-center w-12 h-12 border-2 border-primary text-primary rounded-lg mb-4"
+                                            style={{ backgroundColor: backgrounds[index], color: '#000000' }}
+                                        >
+                                            <feature.icon className="h-6 w-6" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold text-foreground mb-2">
+                                            {feature.title}
+                                        </h3>
+                                        <p className="text-muted-foreground">
+                                            {feature.description}
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </div>
             </section>
@@ -126,11 +132,11 @@ const LandingPage = () => {
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-border py-8">
+            {/* <footer className="border-t border-border py-8">
                 <div className="container mx-auto px-4 text-center text-muted-foreground">
                     <p>© 2025 University Application Tracker. All rights reserved.</p>
                 </div>
-            </footer>
+            </footer> */}
         </div>
     );
 };

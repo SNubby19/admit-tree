@@ -21,12 +21,21 @@ const categoryIcons: Record<RoadmapCategory, React.ComponentType<{ className?: s
 };
 
 const categoryColors: Record<RoadmapCategory, string> = {
-  'computer-science': 'bg-blue-100 text-blue-700 border-blue-300',
-  'business': 'bg-emerald-100 text-emerald-700 border-emerald-300',
-  'health-sciences': 'bg-rose-100 text-rose-700 border-rose-300',
-  'engineering': 'bg-amber-100 text-amber-700 border-amber-300',
-  'arts': 'bg-purple-100 text-purple-700 border-purple-300',
-  'risk-analysis': 'bg-cyan-100 text-cyan-700 border-cyan-300',
+  'computer-science': 'border-black',
+  'business': 'border-black',
+  'health-sciences': 'border-black',
+  'engineering': 'border-black',
+  'arts': 'border-black',
+  'risk-analysis': 'border-black',
+};
+
+const categoryBackgrounds: Record<RoadmapCategory, string> = {
+  'computer-science': '#87ceeb', // Sky blue
+  'engineering': '#ff69b4',      // Hot pink
+  'business': '#ffa07a',         // Light salmon
+  'health-sciences': '#a388ee',  // Light purple
+  'arts': '#b5d2ad',             // Light green
+  'risk-analysis': '#ffa07a',    // Light salmon (reusing)
 };
 
 export function RoadmapSidebar({ 
@@ -65,17 +74,18 @@ export function RoadmapSidebar({
                 key={roadmap.id}
                 onClick={() => onSelectRoadmap(roadmap.id)}
                 className={cn(
-                  'w-full p-4 text-left border-2 transition-all',
+                  'w-full p-4 text-left border-2 transition-all bg-card shadow-xs',
                   isActive 
-                    ? 'border-primary bg-primary/5 shadow-md' 
-                    : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                    ? 'border-primary shadow-md' 
+                    : 'border-border hover:shadow-md'
                 )}
+                style={isActive ? { backgroundColor: '#fdfd96' } : undefined}
               >
                 <div className="flex items-start gap-3">
-                  <div className={cn(
-                    'p-2 border-2',
-                    categoryColors[roadmap.category]
-                  )}>
+                  <div 
+                    className={cn('p-2 border-2', categoryColors[roadmap.category])}
+                    style={{ backgroundColor: categoryBackgrounds[roadmap.category], color: '#000000' }}
+                  >
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">

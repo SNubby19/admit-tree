@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, TrendingUp } from "lucide-react";
+import { GraduationCap, TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ProgramRanking {
@@ -30,6 +30,7 @@ interface ProgramSelectionModalProps {
     rankings: ProgramRanking[];
     onConfirm: (selectedIndices: number[]) => void;
     onCancel: () => void;
+    isLoading?: boolean;
 }
 
 export function ProgramSelectionModal({
@@ -37,6 +38,7 @@ export function ProgramSelectionModal({
     rankings,
     onConfirm,
     onCancel,
+    isLoading = false,
 }: ProgramSelectionModalProps) {
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
 
@@ -44,6 +46,7 @@ export function ProgramSelectionModal({
     const topPrograms = rankings.slice(0, Math.min(6, rankings.length));
 
     const toggleSelection = (index: number) => {
+        if (isLoading) return; // Prevent selection changes while loading
         const newSelected = new Set(selectedIndices);
         if (newSelected.has(index)) {
             newSelected.delete(index);
@@ -55,10 +58,10 @@ export function ProgramSelectionModal({
 
     const handleConfirm = () => {
         onConfirm(Array.from(selectedIndices));
-        setSelectedIndices(new Set());
     };
 
     const handleCancel = () => {
+        if (isLoading) return; // Prevent cancel while loading
         setSelectedIndices(new Set());
         onCancel();
     };
@@ -82,10 +85,12 @@ export function ProgramSelectionModal({
                                 className={cn(
                                     "cursor-pointer transition-all hover:shadow-md border-2",
                                     isSelected
-                                        ? "border-primary bg-primary/5"
-                                        : "border-border hover:border-primary/50"
+                                        ? "border-primary"
+                                        : "border-border hover:border-primary/50",
+                                    isLoading && "opacity-50 cursor-not-allowed"
                                 )}
-                                onClick={() => toggleSelection(index)}
+                                style={isSelected ? { backgroundColor: '#fdfd96' } : undefined}
+                                onClick={() => !isLoading && toggleSelection(index)}
                             >
                                 <CardContent className="p-4">
                                     <div className="flex items-start justify-between gap-3">
@@ -114,7 +119,8 @@ export function ProgramSelectionModal({
                                         <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                             <Checkbox
                                                 checked={isSelected}
-                                                onCheckedChange={() => toggleSelection(index)}
+                                                onCheckedChange={() => !isLoading && toggleSelection(index)}
+                                                disabled={isLoading}
                                             />
                                         </div>
                                     </div>
@@ -131,15 +137,24 @@ export function ProgramSelectionModal({
                 )}
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={handleCancel}>
+                    <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
                         Cancel
                     </Button>
                     <Button
                         onClick={handleConfirm}
-                        disabled={selectedIndices.size === 0}
+                        disabled={selectedIndices.size === 0 || isLoading}
                     >
-                        Add {selectedIndices.size > 0 ? `${selectedIndices.size} ` : ""}
-                        Program{selectedIndices.size !== 1 ? "s" : ""} to Dashboard
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Adding Programs...
+                            </>
+                        ) : (
+                            <>
+                                Add {selectedIndices.size > 0 ? `${selectedIndices.size} ` : ""}
+                                Program{selectedIndices.size !== 1 ? "s" : ""} to Dashboard
+                            </>
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>
